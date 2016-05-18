@@ -9,10 +9,11 @@ import math
 def main(data_path, strategy_path):
 	excludedNames = ['.DS_Store']
 
+	bank = Bank()
 	strategy = readStrategy(strategy_path)
 	data = loadData(data_path, excludedNames)
-	profits = runAlgorithm(data, strategy);
-	printStats(profits)
+	runAlgorithm(data, strategy, bank)
+	# printStats(profits)
 	# drawPlot(profits)
 
 def printStats(profits):
@@ -27,32 +28,26 @@ def readStrategy(path):
 	jsonFile = open(path)
 	return json.load(jsonFile)
 
-def runAlgorithm(data, strategy):
-	units = 0
-	spent = 0
-	profits = []
+def runAlgorithm(data, strategy, bank):
 	for df in data:
-		buy = df['Buy']['open'][:]
-		sell = df['Sell']['open'][:]
-		for i in range(len(buy)):
-			if(units > 0):
-				sell_value = sell[i] * units - spent
-				if math.isnan(sell_value):
-					print("Sell: ", df.iloc[i])
-					continue
-				else:
-					profits.append(sell_value)
-					units = 0
-					spent = 0
-			else:
-				units = 1000
-				buy_value = units * buy[i]
-				if(math.isnan(buy_value)):
-					print("Buy: ", df.iloc[i])
-					units = 0
-				else:
-					spent = buy_value
-	return profits
+		buys = df['Buy']['open']
+		sells = df['Sell']['open']
+		times = df['DateTime']
+		for i in range(len(buys)):
+			datetime = convertToDatetime(times[i])
+			buy = buys[i]
+			sell = sells[i]
+			for j in range(len(bank.activeTrades)):
+				trade = bank.activeTrades[j]
+				if(shouldSell(trade, sell)):
+					trade.closingTime = datetime
+					trade.closingRate = sell
+					trade.profit = trade.calculateReturns();
+					bank.closeTrade(trade)
+			if(shouldBuy(buy)):
+				units = calculateNumberOfUnits(bank, buy)
+				trade = Trade("EUR_USD", units, buy, openingTime)
+				bank.openTrade(trade)
 
 def readPkl(filename):
 	return pandas.read_pickle(filename)
