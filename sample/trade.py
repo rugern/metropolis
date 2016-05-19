@@ -10,14 +10,11 @@ class Trade:
 		self.openingTime = openingTime
 
 	def calculateReturns(self):
-		return self.units * numberOfPips() / 10000;
+		return self.units * numberOfPips() // 10000;
 
 	def numberOfPips(self):
 		return self.closingRate - self.openingRate;
 
 	def spentTime(self):
 		difference = closingTime - openingTime
-		hours = difference.seconds // 3600
-		minutes = (difference.seconds % 3600) // 60
-		seconds = difference.seconds % 60
-		return (hours, minutes, seconds)
+		return utility.convertToRegularTime(difference)

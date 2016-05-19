@@ -1,19 +1,28 @@
-import pickle
 import os
-import sys
-import pandas
 from matplotlib import pyplot
 import json
 import math
+
+import data
+import statistic
+import algorithm
+import bankroll
+import error
+import metrics
+import trade
+import optimization
+
+bank = 0;
+strategy = 0;
 
 def main(data_path, strategy_path):
 	excludedNames = ['.DS_Store']
 
 	bank = Bank()
 	strategy = readStrategy(strategy_path)
-	data = loadData(data_path, excludedNames)
-	runAlgorithm(data, strategy, bank)
-	# printStats(profits)
+	data = data.loadData(data_path, excludedNames)
+	runAlgorithm(data)
+	# statistic.printStats(profits)
 	# drawPlot(profits)
 
 def printStats(profits):
@@ -28,46 +37,39 @@ def readStrategy(path):
 	jsonFile = open(path)
 	return json.load(jsonFile)
 
-def runAlgorithm(data, strategy, bank):
+def runAlgorithm(data):
 	for df in data:
 		buys = df['Buy']['open']
 		sells = df['Sell']['open']
 		times = df['DateTime']
 		for i in range(len(buys)):
 			datetime = convertToDatetime(times[i])
+			history = buys[:i]
 			buy = buys[i]
 			sell = sells[i]
 			for j in range(len(bank.activeTrades)):
 				trade = bank.activeTrades[j]
-				if(shouldSell(trade, sell)):
+				if(shouldSell(history, trade)):
 					trade.closingTime = datetime
 					trade.closingRate = sell
 					trade.profit = trade.calculateReturns();
 					bank.closeTrade(trade)
-			if(shouldBuy(buy)):
-				units = calculateNumberOfUnits(bank, buy)
+			if(shouldBuy(history)):
+				units = calculateNumberOfUnits(buy)
 				trade = Trade("EUR_USD", units, buy, openingTime)
 				bank.openTrade(trade)
 
-def readPkl(filename):
-	return pandas.read_pickle(filename)
+def shouldBuy(history):
+	longAverage = algorithm.movingAverage(history, strategy['longAverageValue'])
+	shortAverage = algorithm.movingAverage(history, strategy['shortAverageValue'])
+	return shortAverage >= longAverage
 
-def loadData(directory, excludedNames):
-	data = []
-	filePaths = getFilePaths(directory, excludedNames)
-	for path in filePaths:
-		data.append(readPkl(path))
-	return data
+def shouldSell(history, trade):
+	longAverage = algorithm.movingAverage(history, strategy['longAverageValue'])
+	shortAverage = algorithm.movingAverage(history, strategy['shortAverageValue'])
+	return shortAverage < longAverage
 
-def getFilePaths(directory, excludedNames):
-	paths = []
-	for root, subFolders, files in os.walk(directory):
-		if len(subFolders) != 0: continue
-		files = list(filter(lambda x: x not in excludedNames, files))
-		if len(files) == 0: continue
-
-		for filename in files:
-			paths.append(root + '/' + filename)
-	return paths
+def calculateNumberOfUnits(value):
+	return bank.assets / value
 
 main(sys.argv[1], sys.argv[2])
