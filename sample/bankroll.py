@@ -13,10 +13,13 @@ class Bank:
 
 
 	def closeTrade(self, trade):
-		if(None in [closingRate, closingTime, profit]) raise NotSetError('Selling info for trade was not set')
+		if(None in [trade.closingRate, trade.closingTime, trade.profit]) raise NotSetError('Selling info for trade was not set')
 
 		net_value = trade.units * trade.closingRate
 		assets += net_value
 		securities -= net_value
 		activeTrades.remove(trade)
 		tradeHistory.append(trade)
+
+	def calculateNumberOfUnits(self, value):
+		return (self.assets // value) // 2

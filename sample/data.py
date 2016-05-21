@@ -1,6 +1,7 @@
-import sys
+import os
 import pandas
 import pickle
+import json
 
 def readPkl(filename):
 	return pandas.read_pickle(filename)
@@ -10,7 +11,22 @@ def loadData(directory, excludedNames):
 	filePaths = getFilePaths(directory, excludedNames)
 	for path in filePaths:
 		data.append(readPkl(path))
-	return data
+	datetimes = getColumn(data, ('DateTime'))
+	buy_open = getColumn(data, ('Buy', 'open'))
+	buy_high = getColumn(data, ('Buy', 'high'))
+	buy_low = getColumn(data, ('Buy', 'low'))
+	buy_close = getColumn(data, ('Buy', 'close'))
+	sell_open = getColumn(data, ('Sell', 'open'))
+	sell_high = getColumn(data, ('Sell', 'high'))
+	sell_low = getColumn(data, ('Sell', 'low'))
+	sell_close = getColumn(data, ('Sell', 'close'))
+	return (datetimes, buy_open, buy_high, buy_low, buy_close, sell_open, sell_high, sell_low, sell_close)
+
+def getColumn(data, column_name):
+	result = []
+	for entry in data:
+		result.extend(data[column_name])
+	return result
 
 def getFilePaths(directory, excludedNames):
 	paths = []
@@ -22,3 +38,13 @@ def getFilePaths(directory, excludedNames):
 		for filename in files:
 			paths.append(root + '/' + filename)
 	return paths
+
+def readStrategy(path):
+	jsonFile = open(path)
+	jsonFile.close()
+	return json.load(jsonFile)
+
+def writeStrategy(json, path):
+	jsonFile = open(path)
+	jsonFile.write(json)
+	jsonFile.close()

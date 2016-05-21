@@ -1,0 +1,8 @@
+{
+	"Name": "Something",
+	"leverage":50,
+	"algorithm":"MA",
+	"optimization":"WFA",
+	"longAveragesInterval": 20,
+	"shortAveragesInterval": 5
+}
