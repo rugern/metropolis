@@ -2,67 +2,44 @@ import sys
 from matplotlib import pyplot
 import math
 
-import data
-import statistic
-import algorithms
-import bankroll
-import error
-import metrics
-import trade
-import optimization
-
-bank = 0;
-strategy = 0;
+from sample import filemanager
+from sample import algorithms
+from sample import bankroll
+from sample import optimization
+from sample import config
+from sample import utility
+from sample import statistic
 
 def main(data_path, strategy_path, training):
 	excludedNames = ['.DS_Store']
 
-	bank = Bank()
-	strategy = data.readStrategy(strategy_path)
-	data = data.loadData(data_path, excludedNames)
-	optimizeStrategy(data) if training else runAlgorithm(data)
-	# statistic.printStats(profits)
-	# drawPlot(profits)
+	config.bank = bankroll.Bank()
+	config.strategy = filemanager.readStrategy(strategy_path)
+	data = filemanager.loadData(data_path, excludedNames)
+	# optimizeStrategy(data) if training else testAlgorithm(data)
+	statistic.plotMovingAverages(data, config.strategy)
 
-def runAlgorithm(data):
-	algorithm = getAlgorithm(strategy['algorithm'])
-	for df in data:
-		buys = df['Buy']['open']
-		sells = df['Sell']['open']
-		times = df['DateTime']
-		for i in range(len(buys)):
-			datetime = convertToDatetime(times[i])
-			history = buys[:i]
-			buy = buys[i]
-			sell = sells[i]
-			for j in range(len(bank.activeTrades)):
-				trade = bank.activeTrades[j]
-				if(algorithm.shouldSell(history, trade)):
-					trade.closingTime = datetime
-					trade.closingRate = sell
-					trade.profit = trade.calculateReturns();
-					bank.closeTrade(trade)
-			if(algorithm.shouldBuy(history)):
-				units = bank.calculateNumberOfUnits(buy)
-				trade = Trade("EUR_USD", units, buy, openingTime)
-				bank.openTrade(trade)
+def testAlgorithm(data):
+	algorithm = getAlgorithm(config.strategy['algorithm'])
+	algorithms.testAlgorithm(algorithm, config.strategy, data)
 
 def optimizeStrategy(data):
-	algorithm = getAlgorithm(strategy['algorithm'])
-	optimizer = getOptimizer(strategy['optimization'])
+	algorithm = getAlgorithm(config.strategy['algorithm'])
+	optimizer = getOptimizer(config.strategy['optimization'])
 
-	optimizedStrategy = optimizer.optimize(strategy, algorithm, training)
-	data.writeStrategy(optimizedStrategy, 'strategies/optimized_strat.json')
+	optimizedStrategy = optimizer.optimize(algorithm, data)
+	optimizedStrategy = utility.mergeDictionaries(config.strategy, optimizedStrategy)
+	filemanager.writeStrategy(optimizedStrategy, 'strategies/optimized_strat.json')
 
 def getAlgorithm(algorithm_name):
 	algorithm = 0
-	if(algorithm_name == 'MA') algorithm = algorithms.MovingAverages()
-	else if(algorithm_name == 'BB') algorithm = algorithms.BollingerBand()
+	if(algorithm_name == 'MA'): algorithm = algorithms.MovingAverages()
+	elif(algorithm_name == 'BB'): algorithm = algorithms.BollingerBand()
 	return algorithm
 
 def getOptimizer(optimizer_name):
 	optimizer = 0
-	if(optimizer_name == 'WFA') optimizer = optimization.walkForward
+	if(optimizer_name == 'WFA'): optimizer = optimization.WalkForward()
 	return optimizer
 
 def printStats(profits):
@@ -71,7 +48,13 @@ def printStats(profits):
 
 def drawPlot(data):
 	pyplot.plot(data)
-	pyplot.show();
+	pyplot.show()
 
-if(len(sys.argv) == 4): main(sys.argv[1], sys.argv[2], sys.argv[3])
-else: main(sys.argv[1], sys.argv[2], False)
+mode = sys.argv[1]
+data_path = strategy_path = training = None
+if(mode == 'default'):
+	data_path = 'data/15min/'
+	strategy_path = 'strategies/strategy.json'
+	training = True
+
+main(data_path, strategy_path, training)

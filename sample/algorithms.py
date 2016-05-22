@@ -1,8 +1,11 @@
-import metrics
+from sample import metrics
+from sample import trade
+from sample import config
 
 class BollingerBand:
 	parameterNames = ['bollingerInterval']
-	parameterIncrements = [1]
+	increments = [1]
+	minimum_parameters = [2]
 
 	def shouldBuy(self, history, strategy):
 		interval = strategy['bollingerInterval']
@@ -22,8 +25,14 @@ class BollingerBand:
 		return (upper_band, middle_band, lower_band)
 
 class MovingAverages:
-	parameterNames = ['longAveragesInterval', 'shortAveragesInterval']
-	parameterIncrements = [1, 1]
+	parameterNames = ['shortAveragesInterval', 'longAveragesInterval']
+
+	def availableParameters(self, number_of_increments):
+		parameters = []
+		for i in range(1, number_of_increments):
+			for j in range(i + 1, number_of_increments):
+				parameters.append((i, j))
+		return parameters
 
 	def shouldBuy(self, history, strategy):
 		long_interval = strategy['longAveragesInterval']
@@ -32,7 +41,7 @@ class MovingAverages:
 		shortAverages = self.movingAverages(history, short_interval)
 		return shortAverages[-1] >= longAverages[-1]
 
-	def shouldSell(self, history, strategy, trade):
+	def shouldSell(self, history, strategy, security):
 		long_interval = strategy['longAveragesInterval']
 		short_interval = strategy['shortAveragesInterval']
 		longAverages = self.movingAverages(history, long_interval)
@@ -45,23 +54,26 @@ class MovingAverages:
 	def movingAverages(self, history, span):
 		averages = []
 		for i in range(span):
-			averages.append(movingAverage(history[:-span + i + 1], span))
+			averages.append(self.movingAverage(history[:-span + i + 1], span))
 		return averages
 
 def testAlgorithm(algorithm, strategy, data):
 	datetimes, buy_open, buy_high, buy_low, buy_close, sell_open, sell_high, sell_low, sell_close = data
-	length = len(buy_open)
-
-	for i in range(1:length):
+	length = len(buy_close)
+	for i in range(1, length):
 		datetime = datetimes[i]
 
-		if(algorithm.shouldBuy(buy_open[:i], strategy)):
-			trade = Trade("EUR_USD", units, buy_open[-1], datetime)
-			bank.openTrade(trade)
+		currentSecurities = len(config.bank.activeSecurities)
+		if(currentSecurities == 0 and algorithm.shouldBuy(buy_close[:i], strategy)):
+			print('Bought')
+			units = config.bank.calculateNumberOfUnits(buy_close[-1])
+			security = trade.Trade('EUR_USD', units, buy_close[-1], datetime)
+			config.bank.openTrade(security)
 
-		for trade in bank.activeTrades:
-			if(algorithm.shouldSell(sell_close[:i], strategy, trade)):
-				trade.closingTime = datetime
-				trade.closingRate = sell
-				trade.profit = trade.calculateReturns()
-				bank.closeTrade(trade)
+		for security in config.bank.activeSecurities:
+			if(algorithm.shouldSell(sell_close[:i], strategy, security)):
+				print('Sold')
+				security.closingTime = datetime
+				security.closingRate = sell_close[-1]
+				security.profit = security.calculateReturns()
+				config.bank.closeTrade(security)

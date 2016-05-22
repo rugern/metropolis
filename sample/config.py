@@ -1,0 +1,2 @@
+bank = None;
+strategy = None;

@@ -1,27 +1,28 @@
 import functools
-import trade
 import math
 
-def sumProfits(trades):
-	return functools.reduce(lambda x, y: x + y.profit, trades, 0);
+from sample import trade
 
-def profitFactor(trades):
-	losses = filter(lambda x: x.profit < 0, trades)
-	profits = filter(lambda x: x.profit > 0, trades)
+def sumProfits(securities):
+	return functools.reduce(lambda x, y: x + y.profit, securities, 0);
+
+def profitFactor(securities):
+	losses = filter(lambda x: x.profit < 0, securities)
+	profits = filter(lambda x: x.profit > 0, securities)
 	return sum(profits) / sum(losses)
 
-def averageWinningTrade(trades):
-	return sumProfits(trades) / len(trades)
+def averageWinningTrade(securities):
+	return sumProfits(securities) / len(securities)
 
-def maximumDrawdown(trades):
+def maximumDrawdown(securities):
 	maximum_drawdown = 0
 	drawdown_high = 0
 
-	high = trades[0].profit
-	low = trades[0].profit
+	high = securities[0].profit
+	low = securities[0].profit
 
-	for trade in trades:
-		profit = trade.profit
+	for security in securities:
+		profit = security.profit
 		if(profit > high):
 			if(high - low > maximum_drawdown):
 				maximum_drawdown = high - low
@@ -35,24 +36,25 @@ def maximumDrawdown(trades):
 
 	return (maximum_drawdown, drawdown_high)
 
-def relativeMaximumDrawdown(trades):
-	(maximum_drawdown, drawdown_high) = maximumDrawdown(trades)
+def relativeMaximumDrawdown(securities):
+	(maximum_drawdown, drawdown_high) = maximumDrawdown(securities)
 	return maximum_drawdown / drawdown_high
 
-def absoluteMaximumDrawdown(trades):
-	(maximum_drawdown, drawdown_high) = maximumDrawdown(trades)
+def absoluteMaximumDrawdown(securities):
+	(maximum_drawdown, drawdown_high) = maximumDrawdown(securities)
 	return maximum_drawdown
 
-def timeAverages(trades):
-	total = functools.reduce(lambda x, y: x + y.spentTime(), trades, 0)
-	return total / len(trades)
+def timeAverages(securities):
+	total = functools.reduce(lambda x, y: x + y.spentTime(), securities, 0)
+	return total / len(securities)
 
-def riskStopLoss(trades):
-	profit = sumProfits(trades)
-	maximum_drawdown = absoluteMaximumDrawdown(trades)[0]
+def riskStopLoss(securities):
+	profit = sumProfits(securities)
+	maximum_drawdown = absoluteMaximumDrawdown(securities)[0]
 	return profit / maximum_drawdown
 
 def calculateAverage(history):
+	if(len(history) == 0): return 0
 	total = sum(history)
 	return total / len(history)
 
@@ -61,20 +63,20 @@ def standardDeviation(history):
 	inner_sum = functools.reduce(lambda x, y: x + (y - average) ** 2, history, 0)
 	return math.sqrt(inner_sum / len(history))
 
-def rinaIndex(trades):
-	profit = selectTotalNetProfit(trades)
-	average_drawdown = averageDrawdown(trades)
-	percent_time_active = percentTimeInMarket(trades)
+def rinaIndex(securities):
+	profit = selectTotalNetProfit(securities)
+	average_drawdown = averageDrawdown(securities)
+	percent_time_active = percentTimeInMarket(securities)
 	return profit / (average_drawdown * percent_time_active)
 
-def averageDrawdown(trades):
+def averageDrawdown(securities):
 	drawdowns = []
 
-	high = trades[0].profit
-	low = trades[0].profit
+	high = securities[0].profit
+	low = securities[0].profit
 
-	for trade in trades:
-		profit = trade.profit
+	for security in securities:
+		profit = security.profit
 		if(profit > high):
 			if(high != low):
 				drawdowns.append(high - low)
@@ -86,13 +88,13 @@ def averageDrawdown(trades):
 
 	return sum(drawdowns) / len(drawdowns)
 
-def percentTimeInMarket(trades):
-	total = trades[-1].closingTime - trades[0].openingTime
-	time_spent = functools.reduce(lambda x, y: x + (y.closingTime - y.openingTime), trades, 0)
+def percentTimeInMarket(securities):
+	total = securities[-1].closingTime - securities[0].openingTime
+	time_spent = functools.reduce(lambda x, y: x + (y.closingTime - y.openingTime), securities, 0)
 	return 100 * time_spent / total
 
-def selectTotalNetProfit(trades):
-	profits = map(lambda x: x.profit, trades)
+def selectTotalNetProfit(securities):
+	profits = map(lambda x: x.profit, securities)
 	average = calculateAverage(profits)
 	triple_standard_deviation = 3 * standardDeviation(profits)
 	counting_profits = filter(lambda x: math.fabs(x - average) <= triple_standard_deviation, profits)

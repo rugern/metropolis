@@ -11,7 +11,9 @@ def loadData(directory, excludedNames):
 	filePaths = getFilePaths(directory, excludedNames)
 	for path in filePaths:
 		data.append(readPkl(path))
-	datetimes = getColumn(data, ('DateTime'))
+	datetimes = []
+	for row in data:
+		datetimes.extend(row.index.values)
 	buy_open = getColumn(data, ('Buy', 'open'))
 	buy_high = getColumn(data, ('Buy', 'high'))
 	buy_low = getColumn(data, ('Buy', 'low'))
@@ -25,7 +27,7 @@ def loadData(directory, excludedNames):
 def getColumn(data, column_name):
 	result = []
 	for entry in data:
-		result.extend(data[column_name])
+		result.extend(entry[column_name])
 	return result
 
 def getFilePaths(directory, excludedNames):
@@ -41,10 +43,11 @@ def getFilePaths(directory, excludedNames):
 
 def readStrategy(path):
 	jsonFile = open(path)
+	strategy = json.load(jsonFile)
 	jsonFile.close()
-	return json.load(jsonFile)
+	return strategy
 
-def writeStrategy(json, path):
-	jsonFile = open(path)
-	jsonFile.write(json)
+def writeStrategy(content, path):
+	jsonFile = open(path, 'w+')
+	json.dump(content, jsonFile)
 	jsonFile.close()

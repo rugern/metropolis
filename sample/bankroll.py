@@ -1,25 +1,25 @@
+
 class Bank:
 
 	assets = 1000
-	securities = 0
-	activeTrades = []
-	tradeHistory = []
+	securities_value = 0
+	activeSecurities = []
+	securityHistory = []
 
-	def openTrade(self, trade):
-		value = trade.units * trade.openingRate
-		assets -= value
-		securities += value
-		activeTrades.append(trade)
+	def openTrade(self, security):
+		value = security.units * security.openingRate
+		self.assets -= value
+		self.securities_value += value
+		self.activeSecurities.append(security)
 
+	def closeTrade(self, security):
+		if(None in [security.closingRate, security.closingTime, security.profit]): raise ValueError('Selling info for security was not set')
 
-	def closeTrade(self, trade):
-		if(None in [trade.closingRate, trade.closingTime, trade.profit]) raise NotSetError('Selling info for trade was not set')
-
-		net_value = trade.units * trade.closingRate
-		assets += net_value
-		securities -= net_value
-		activeTrades.remove(trade)
-		tradeHistory.append(trade)
+		net_value = security.units * security.closingRate
+		self.assets += net_value
+		self.securities_value -= net_value
+		self.activeSecurities.remove(security)
+		self.securityHistory.append(security)
 
 	def calculateNumberOfUnits(self, value):
 		return (self.assets // value) // 2

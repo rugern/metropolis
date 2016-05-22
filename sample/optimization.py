@@ -1,4 +1,5 @@
-import algorithms
+from sample import algorithms
+from sample import utility
 
 class WalkForward:
 	algorithm = None
@@ -12,27 +13,48 @@ class WalkForward:
 		training = data[:-test_size]
 		test = data[3 * test_size:]
 
-		parameters = [0] * len(algorithm.parameterNames)
-		result, strategy = self.recursiveParameterTest(parameters, 0)
+		parameter_combinations = algorithm.availableParameters(3)
+		result, strategy = self.testParameters(parameter_combinations)
 
 		self.reset()
 		return strategy
 
+	def testParameters(self, parameter_combinations):
+		if(None in [self.algorithm, self.data]): raise ValueError('Values in WF not set!')
+
+		bestResult = None
+		bestStrategy = None
+
+		for parameters in parameter_combinations:
+			names = self.algorithm.parameterNames
+			strategy = {}
+			for i in range(len(names)):
+				strategy[names[i]] = parameters[i]
+			print('Testing parameters: ', utility.arrayToString(parameters))
+
+			result = algorithms.testAlgorithm(self.algorithm, strategy, self.data)
+			if(bestResult == None or result > bestResult):
+				bestResult = result
+				bestStrategy = strategy
+
+		return bestResult, bestStrategy
+
 	def recursiveParameterTest(self, parameters, index):
-		if(None in [self.algorithm, self.data]) raise NotSetError('Values in WF not set!')
+		if(None in [self.algorithm, self.data]): raise ValueError('Values in WF not set!')
 
 		if(index >= len(parameters)):
 			names = self.algorithm.parameterNames
 			strategy = {}
 			for i in range(len(names)):
 				strategy[names[i]] = parameters[i]
-			return (algorithms.runAlgorithm(self.algorithm, strategy, self.data), strategy)
+			print('Testing parameters: ', utility.arrayToString(parameters))
+			return (algorithms.testAlgorithm(self.algorithm, strategy, self.data), strategy)
 
 		increment = self.algorithm.increments[index]
 		bestResult = None
 		bestStrategy = None
-		for i in range(1:11):
-			parameters[index] = i * increment
+		for i in range(10):
+			parameters[index] += i * increment
 			result, strategy = self.recursiveParameterTest(parameters, index + 1)
 			if(bestResult == None or result > bestResult):
 				bestResult = result
