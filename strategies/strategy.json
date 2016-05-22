@@ -4,5 +4,6 @@
 	"algorithm":"MA",
 	"optimization":"WFA",
 	"longAveragesInterval": 20,
-	"shortAveragesInterval": 5
+	"shortAveragesInterval": 5,
+	"bollingerInterval": 20
 }

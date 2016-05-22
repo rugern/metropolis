@@ -17,11 +17,11 @@ def main(data_path, strategy_path, training):
 	config.strategy = filemanager.readStrategy(strategy_path)
 	data = filemanager.loadData(data_path, excludedNames)
 	# optimizeStrategy(data) if training else testAlgorithm(data)
-	statistic.plotMovingAverages(data, config.strategy)
+	statistic.plotBollinger(data, config.strategy)
 
 def testAlgorithm(data):
 	algorithm = getAlgorithm(config.strategy['algorithm'])
-	algorithms.testAlgorithm(algorithm, config.strategy, data)
+	algorithms.backtest(algorithm, config.strategy, data)
 
 def optimizeStrategy(data):
 	algorithm = getAlgorithm(config.strategy['algorithm'])
@@ -53,7 +53,7 @@ def drawPlot(data):
 mode = sys.argv[1]
 data_path = strategy_path = training = None
 if(mode == 'default'):
-	data_path = 'data/15min/'
+	data_path = 'data/15min/EUR_USD/2016/'
 	strategy_path = 'strategies/strategy.json'
 	training = True
 

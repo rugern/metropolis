@@ -59,6 +59,7 @@ def calculateAverage(history):
 	return total / len(history)
 
 def standardDeviation(history):
+	if(len(history) == 0): return 0
 	average = calculateAverage(history)
 	inner_sum = functools.reduce(lambda x, y: x + (y - average) ** 2, history, 0)
 	return math.sqrt(inner_sum / len(history))

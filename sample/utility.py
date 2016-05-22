@@ -1,3 +1,5 @@
+import pandas
+
 def convertToRegularTime(datetime):
 	hours = datetime.seconds // 3600
 	minutes = (datetime.seconds % 3600) // 60
@@ -11,3 +13,8 @@ def mergeDictionaries(base, overwrites):
 	for key in overwrites:
 		base[key] = overwrites[key]
 	return base
+
+def datetimeToString(dt):
+	time = pandas.to_datetime(str(dt))
+	string = time.strftime('%H:%M')
+	return string
