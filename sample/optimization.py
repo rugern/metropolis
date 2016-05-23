@@ -1,66 +1,29 @@
 from sample import algorithms
 from sample import utility
+from sample import statistic
+from sample import config
+from sample import filemanager
 
-class WalkForward:
-	algorithm = None
-	data = None
+def optimize(algorithm, data):
+	test_size = len(data) // 4
+	training = data[:-test_size]
+	test = data[3 * test_size:]
 
-	def optimize(self, algorithm, data):
-		self.algorithm = algorithm
-		self.data = data
+	trainingResults = []
+	testResults = []
+	bestResult = None
+	parameters = algorithm.getAllParameters()
+	for parameter in parameters:
+		print('Testing parameters: ', utility.dictionaryToString(parameter))
+		strategy = utility.mergeDictionaries(config.strategy, parameters)
+		result = algorithms.backtest(algorithm, training, strategy)
+		test_result = algorithms.backtest(algorithm, test, strategy)
+		if(bestResult is None or result > bestResult):
+			bestResult = result
+			bestStrategy = strategy
+		trainingResults.append(result)
+		testResults.append(test_result)
+		print('Result: ', result, ', test: ', test_result)
 
-		test_size = len(data) // 4
-		training = data[:-test_size]
-		test = data[3 * test_size:]
-
-		parameter_combinations = algorithm.availableParameters(3)
-		result, strategy = self.testParameters(parameter_combinations)
-
-		self.reset()
-		return strategy
-
-	def testParameters(self, parameter_combinations):
-		if(None in [self.algorithm, self.data]): raise ValueError('Values in WF not set!')
-
-		bestResult = None
-		bestStrategy = None
-
-		for parameters in parameter_combinations:
-			names = self.algorithm.parameterNames
-			strategy = {}
-			for i in range(len(names)):
-				strategy[names[i]] = parameters[i]
-			print('Testing parameters: ', utility.arrayToString(parameters))
-
-			result = algorithms.testAlgorithm(self.algorithm, strategy, self.data)
-			if(bestResult == None or result > bestResult):
-				bestResult = result
-				bestStrategy = strategy
-
-		return bestResult, bestStrategy
-
-	def recursiveParameterTest(self, parameters, index):
-		if(None in [self.algorithm, self.data]): raise ValueError('Values in WF not set!')
-
-		if(index >= len(parameters)):
-			names = self.algorithm.parameterNames
-			strategy = {}
-			for i in range(len(names)):
-				strategy[names[i]] = parameters[i]
-			print('Testing parameters: ', utility.arrayToString(parameters))
-			return (algorithms.testAlgorithm(self.algorithm, strategy, self.data), strategy)
-
-		increment = self.algorithm.increments[index]
-		bestResult = None
-		bestStrategy = None
-		for i in range(10):
-			parameters[index] += i * increment
-			result, strategy = self.recursiveParameterTest(parameters, index + 1)
-			if(bestResult == None or result > bestResult):
-				bestResult = result
-				bestStrategy = strategy
-		return (bestResult, bestStrategy)
-
-	def reset(self):
-		self.algorithm = None
-		self.data = None
+	statistic.plotArrays([trainingResults, testResults])
+	filemanager.writeStrategy(bestStrategy, 'strategies/optimized_strat.json')

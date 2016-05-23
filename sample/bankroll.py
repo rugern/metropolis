@@ -2,6 +2,7 @@
 class Bank:
 
 	assets = 1000
+	initial_assets = assets
 	securities_value = 0
 	activeSecurities = []
 	securityHistory = []
@@ -23,3 +24,6 @@ class Bank:
 
 	def calculateNumberOfUnits(self, value):
 		return (self.assets // value) // 2
+
+	def calculateResult(self):
+		return self.assets - self.initial_assets

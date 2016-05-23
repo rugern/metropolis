@@ -9,6 +9,12 @@ def convertToRegularTime(datetime):
 def arrayToString(array):
 	return '{0}'.format(', '.join(map(lambda x: str(x), array)))
 
+def dictionaryToString(dictionary):
+	strings = []
+	for key in dictionary:
+		strings.append('{0}:{1}'.format(key, dictionary[key]))
+	return ', '.join(strings)
+
 def mergeDictionaries(base, overwrites):
 	for key in overwrites:
 		base[key] = overwrites[key]

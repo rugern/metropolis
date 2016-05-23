@@ -1,2 +1,2 @@
-bank = None;
-strategy = None;
+bank = None
+strategy = None

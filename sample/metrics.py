@@ -1,10 +1,8 @@
 import functools
 import math
 
-from sample import trade
-
 def sumProfits(securities):
-	return functools.reduce(lambda x, y: x + y.profit, securities, 0);
+	return functools.reduce(lambda x, y: x + y.profit, securities, 0)
 
 def profitFactor(securities):
 	losses = filter(lambda x: x.profit < 0, securities)
@@ -41,7 +39,7 @@ def relativeMaximumDrawdown(securities):
 	return maximum_drawdown / drawdown_high
 
 def absoluteMaximumDrawdown(securities):
-	(maximum_drawdown, drawdown_high) = maximumDrawdown(securities)
+	maximum_drawdown = maximumDrawdown(securities)[0]
 	return maximum_drawdown
 
 def timeAverages(securities):
@@ -53,16 +51,20 @@ def riskStopLoss(securities):
 	maximum_drawdown = absoluteMaximumDrawdown(securities)[0]
 	return profit / maximum_drawdown
 
-def calculateAverage(history):
-	if(len(history) == 0): return 0
-	total = sum(history)
-	return total / len(history)
-
 def standardDeviation(history):
 	if(len(history) == 0): return 0
 	average = calculateAverage(history)
 	inner_sum = functools.reduce(lambda x, y: x + (y - average) ** 2, history, 0)
 	return math.sqrt(inner_sum / len(history))
+
+def runningStandardDeviation(data, interval):
+	deviations = [0] * len(data)
+	for i in range(1, len(data)):
+		start = 0
+		if(interval <= i): start = i - interval
+		deviations[i] = standardDeviation(data[start:i + 1])
+		if(deviations[i] == 0): print(data[start:i+1])
+	return deviations
 
 def rinaIndex(securities):
 	profit = selectTotalNetProfit(securities)
@@ -100,3 +102,19 @@ def selectTotalNetProfit(securities):
 	triple_standard_deviation = 3 * standardDeviation(profits)
 	counting_profits = filter(lambda x: math.fabs(x - average) <= triple_standard_deviation, profits)
 	return sum(counting_profits)
+
+def calculateAverage(data):
+	if(len(data) == 0): return 0
+	return sum(data) / len(data)
+
+def movingAverages(data, interval):
+	averages = []
+	for i in range(1, len(data)):
+		start = getIntervalStart(i, interval)
+		averages.append(calculateAverage(data[start:i + 1]))
+	return averages
+
+def getIntervalStart(length, interval):
+	start = 0
+	if(interval < length): start = length - interval
+	return start

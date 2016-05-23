@@ -1,8 +1,8 @@
 from matplotlib import pyplot
-import numpy
 
 from sample import algorithms
 from sample import utility
+from sample import metrics
 
 
 def plotMovingAverages(data, strategy):
@@ -14,14 +14,10 @@ def plotMovingAverages(data, strategy):
 	for i in range(limit):
 		if(i % 4 == 0): datetimes[i] = utility.datetimeToString(data[0][i])
 	buy_open = data[1][:limit]
-	longAverages = algorithms.MovingAverages.movingAverages(buy_open, long_interval)
-	shortAverages = algorithms.MovingAverages.movingAverages(buy_open, short_interval)
+	long_averages = metrics.movingAverages(buy_open, long_interval)
+	short_averages = metrics.movingAverages(buy_open, short_interval)
 
-	pyplot.plot(buy_open, color='blue')
-	pyplot.plot(longAverages, color='green')
-	pyplot.plot(shortAverages, color='red')
-	pyplot.xticks(range(len(datetimes)), datetimes, size='small')
-
+	plotArrays([buy_open, long_averages, short_averages], datetimes)
 	pyplot.show()
 
 def plotBollinger(data, strategy):
@@ -32,12 +28,13 @@ def plotBollinger(data, strategy):
 	for i in range(limit):
 		if(i % 4 == 0): datetimes[i] = utility.datetimeToString(data[0][i])
 	buy_open = data[1][:limit]
-	upper, middle, lower = algorithms.BollingerBand.bollingerBand(buy_open, interval)
+	upper, middle, lower = algorithms.BollingerBand.getBands(buy_open, interval)
 
-	pyplot.plot(buy_open, color='blue')
-	pyplot.plot(upper, color='green')
-	pyplot.plot(middle, color='gray')
-	pyplot.plot(lower, color='red')
-	pyplot.xticks(range(len(datetimes)), datetimes, size='small')
+	plotArrays([buy_open, upper, middle, lower], datetimes)
 
+def plotArrays(arrays, xLabels=None):
+	for array in arrays:
+		pyplot.plot(array)
+
+	if(xLabels is not None): pyplot.xticks(range(len(xLabels)), xLabels, size='small')
 	pyplot.show()
