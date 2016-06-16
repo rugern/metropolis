@@ -1,29 +1,25 @@
 import sys
 
+import backtrader as bt
+
 from sample import filemanager
-from sample import algorithms
-from sample import bankroll
-from sample import optimization
 from sample import config
-from sample import statistic
 
 def main(strategy_path):
-	excludedNames = ['.DS_Store']
 	config.strategy = filemanager.readStrategy(strategy_path)
-	config.bank = bankroll.Bank()
-
 	data_path = config.strategy['data_path']
 	mode = config.strategy['mode']
-	data = filemanager.loadData(data_path, excludedNames)
-	algorithm = getAlgorithm(config.strategy['algorithm'])
+	data = filemanager.loadData(data_path)
 
-	if(mode == 'plot'): statistic.plotBollinger(data, config.strategy)
-	elif(mode == 'backtest'): algorithms.backtest(algorithm, data, config.strategy)
-	elif(mode == 'training'): optimization.optimize(algorithm, data)
+	cerebro = bt.Cerebro()
+	cerebro.broker.setcash(100000.0)
 
-def getAlgorithm(algorithm_name):
-	if(algorithm_name == 'MA'): return algorithms.MovingAverages()
-	elif(algorithm_name == 'BB'): return algorithms.BollingerBand()
-	raise ValueError('Could not find the specified algorithm')
+	print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
 
-main(sys.argv[1])
+	cerebro.run()
+
+	print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
+
+
+if __name__ == '__main__':
+	main(sys.argv[1])
