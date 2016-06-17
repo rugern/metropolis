@@ -1,2 +1,0 @@
-bank = None
-strategy = None
