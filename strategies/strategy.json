@@ -1,12 +1,14 @@
 {
-	"Name": "Something",
+	"startDate": "01.01.16",
+	"endDate": "01.05.16",
+	"data_path": "Result-OHLC.pkl",
+	"mode": "plot",
+	"cash": 100000.0,
+	"strategy":"test",
+
 	"leverage":50,
-	"algorithm":"B",
-	"longAveragesInterval": 20,
-	"shortAveragesInterval": 5,
-	"bollingerInterval": 20,
-	"startTime": "01.01.16 00:00:00",
-	"endTime": "01.05.16 00:00:00",
-	"data_path": "data/15min/EUR_USD/2016",
-	"mode": "plot"
+	"sma_long_interval": 20,
+	"sma_short_interval": 5,
+	"bbands_interval": 20,
+	"bbands_deviation": 2
 }

@@ -1,25 +1,22 @@
-import sys
-
 import backtrader as bt
 
-from sample import filemanager
-from sample import config
+from sample import configuration
 
-def main(strategy_path):
-	config.strategy = filemanager.readStrategy(strategy_path)
-	data_path = config.strategy['data_path']
-	mode = config.strategy['mode']
-	data = filemanager.loadData(data_path)
-
+def main():
 	cerebro = bt.Cerebro()
-	cerebro.broker.setcash(100000.0)
+
+	config = configuration.Config('strategies/strategy.json')
+	data = bt.feeds.PandasData(dataname=config.data, datetime=None)
+
+	cerebro.adddata(data)
+	cerebro.broker.setcash(config.cash)
+	cerebro.addstrategy(config.strategy)
 
 	print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
-
 	cerebro.run()
-
 	print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
 
+	return
 
 if __name__ == '__main__':
-	main(sys.argv[1])
+	main()
