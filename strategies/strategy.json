@@ -1,9 +1,11 @@
 {
 	"startDate": "01.01.16",
-	"endDate": "01.05.16",
+	"endDate": "01.02.16",
 	"data_path": "Result-OHLC.pkl",
 	"mode": "plot",
 	"cash": 100000.0,
+	"commission": 0.0,
+	"stake": 10,
 	"strategy":"test",
 
 	"leverage":50,
