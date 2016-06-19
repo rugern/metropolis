@@ -1,7 +1,5 @@
 import backtrader as bt
 
-from sample import config
-
 # Too many ancestors
 #pylint: disable=R0901
 # Init not called
@@ -16,38 +14,61 @@ from sample import config
 #pylint: disable=E1102
 # Space after comma
 #pylint: disable=C0326
+# Wrong hanging indentation
+#pylint: disable=C0330
 
 class TestStrategy(bt.Strategy):
-	params = (('long_interval', 20),('short_interval', 5),)
+	params = (
+		('short_interval', 0),
+		('long_interval', 0),
+		('stake', 0),
+	)
 
 	def __init__(self):
 		self.dataclose = self.datas[0].close
-		self.sizer.setsizing(config.stake)
+		self.sizer.setsizing(self.params.stake)
 		self.bar_executed = 0
 		self.order = None
 
 		self.sma = bt.indicators.SimpleMovingAverage(self.datas[0], period=self.params.long_interval)
-		bt.indicators.ExponentialMovingAverage(self.datas[0], period=self.params.long_interval)
-		bt.indicators.WeightedMovingAverage(self.datas[0], period=self.params.long_interval).subplot = True
-		bt.indicators.StochasticSlow(self.datas[0])
-		bt.indicators.MACDHisto(self.datas[0])
-		rsi = bt.indicators.RSI(self.datas[0])
-		bt.indicators.SmoothedMovingAverage(rsi, period=config.sma_short_interval)
-		bt.indicators.ATR(self.datas[0]).plot = False
+		bt.indicators.SimpleMovingAverage(self.datas[0], period=self.params.short_interval)
 
-	def notify(self, order):
+	def notify_order(self, order):
 		if order.status in [order.Submitted, order.Accepted]:
 			# Buy/Sell order submitted/accepted to/by broker - Nothing to do
 			return
 
+		# Check if an order has been completed
+		# Attention: broker could reject order if not enougth cash
 		if order.status in [order.Completed, order.Canceled, order.Margin]:
+			if order.isbuy():
+				self.log('BUY EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f' % (order.executed.price, order.executed.value, order.executed.comm))
+
+			else:  # Sell
+				self.log('SELL EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f' % (order.executed.price, order.executed.value, order.executed.comm))
+
 			self.bar_executed = len(self)
 
+		# Write down: no pending order
 		self.order = None
 
-	def next(self):
-		# self.log('Close, %f' % self.dataclose[0])
+	def notify_trade(self, trade):
+		if not trade.isclosed:
+			return
 
+		self.log('OPERATION PROFIT, GROSS %.2f, NET %.2f' % (trade.pnl, trade.pnlcomm))
+
+	# def notify(self, order):
+	# 	if order.status in [order.Submitted, order.Accepted]:
+	# 		# Buy/Sell order submitted/accepted to/by broker - Nothing to do
+	# 		return
+	#
+	# 	if order.status in [order.Completed, order.Canceled, order.Margin]:
+	# 		self.bar_executed = len(self)
+	#
+	# 	self.order = None
+
+	def next(self):
 		if self.order:
 			return
 
