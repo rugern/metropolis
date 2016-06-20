@@ -7,22 +7,24 @@ from sample import config
 # Wrong hanging indentation
 #pylint: disable=C0330
 
-def main(mode):
+def main(long_interval, short_interval, plot=False):
 	cerebro = bt.Cerebro()
-	if(mode == 'backtest'):
-		cerebro.optstrategy(config.strategy, long_interval=range(20, 25), short_interval=range(2, 5))
-	else:
-		cerebro.addstrategy(config.strategy, long_interval=config.sma_long_interval, short_interval=config.sma_short_interval)
-
+	cerebro.addstrategy(config.strategy, long_interval=long_interval, short_interval=short_interval)
 	cerebro.adddata(bt.feeds.PandasData(dataname=config.data, datetime=None))
 	cerebro.broker.setcash(config.cash)
 	cerebro.broker.setcommission(commission=config.commission)
 
-	print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
 	cerebro.run()
-	cerebro.plot()
+	if(plot): cerebro.plot()
 	return
 
 if __name__ == '__main__':
+	mode = 'backtest'
+
 	config.initialize('strategies/strategy.json')
-	main('backtest')
+	print('Starting Portfolio Value: %.2f' % config.cash)
+	if(mode == 'backtest'):
+		for i in range(20, 25):
+			main(i, config.sma_short_interval)
+	else:
+		main(config.sma_long_interval, config.sma_short_interval, True)
