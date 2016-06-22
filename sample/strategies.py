@@ -1,4 +1,9 @@
+from six import with_metaclass
+from backtrader.metabase import MetaParams
+
 import backtrader as bt
+
+from sample import statistic
 
 # Too many ancestors
 #pylint: disable=R0901
@@ -19,19 +24,24 @@ import backtrader as bt
 
 class TestStrategy(bt.Strategy):
 	params = (
-		('short_interval', 0),
-		('long_interval', 0),
-		('stake', 0),
+		('config', 0),
 	)
+	config = None
+	buy_history = []
+	sell_history = []
+	position = False
 
 	def __init__(self):
+		self.config = self.params.config
+
 		self.dataclose = self.datas[0].close
-		self.sizer.setsizing(self.params.stake)
+		self.setsizer(MySizer())
+		self.sizer.setsizing(self.config['stake'])
 		self.bar_executed = 0
 		self.order = None
 
-		self.sma = bt.indicators.SimpleMovingAverage(self.datas[0], period=self.params.long_interval)
-		bt.indicators.SimpleMovingAverage(self.datas[0], period=self.params.short_interval)
+		self.long_sma = bt.indicators.SimpleMovingAverage(self.datas[0], period=self.config['sma_long_interval'])
+		self.short_sma = bt.indicators.SimpleMovingAverage(self.datas[0], period=self.config['sma_short_interval'])
 		bt.indicators.ExponentialMovingAverage(self.datas[0], period=25)
 		bt.indicators.WeightedMovingAverage(self.datas[0], period=25).subplot = True
 		bt.indicators.StochasticSlow(self.datas[0])
@@ -42,21 +52,16 @@ class TestStrategy(bt.Strategy):
 
 	def notify_order(self, order):
 		if order.status in [order.Submitted, order.Accepted]:
-			# Buy/Sell order submitted/accepted to/by broker - Nothing to do
 			return
 
-		# Check if an order has been completed
-		# Attention: broker could reject order if not enougth cash
 		if order.status in [order.Completed, order.Canceled, order.Margin]:
 			if order.isbuy():
 				self.log('BUY EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f' % (order.executed.price, order.executed.value, order.executed.comm))
-
-			else:  # Sell
+			else:
 				self.log('SELL EXECUTED, Price: %.2f, Cost: %.2f, Comm %.2f' % (order.executed.price, order.executed.value, order.executed.comm))
 
 			self.bar_executed = len(self)
 
-		# Write down: no pending order
 		self.order = None
 
 	def notify_trade(self, trade):
@@ -65,31 +70,61 @@ class TestStrategy(bt.Strategy):
 
 		self.log('OPERATION PROFIT, GROSS %.2f, NET %.2f' % (trade.pnl, trade.pnlcomm))
 
-	# def notify(self, order):
-	# 	if order.status in [order.Submitted, order.Accepted]:
-	# 		# Buy/Sell order submitted/accepted to/by broker - Nothing to do
-	# 		return
-	#
-	# 	if order.status in [order.Completed, order.Canceled, order.Margin]:
-	# 		self.bar_executed = len(self)
-	#
-	# 	self.order = None
 
 	def next(self):
 		if self.order:
 			return
 
 		if not self.position:
-			if self.dataclose[0] > self.sma[0]:
+			if self.long_sma[0] < self.short_sma[0]:
 				self.order = self.buy()
+				self.position = True
+				position_size = statistic.kellyCriterion(self.buy_history, self.sell_history)
+				self.buy_history.append(self.dataclose[0])
 		else:
-			if self.dataclose[0] < self.sma[0]:
+			if self.short_sma[0] < self.long_sma[0]:
 				self.order = self.sell()
+				self.position = False
+				self.sell_history.append(self.dataclose[0] * self.config['stake'])
 
 	def stop(self):
-		self.log('(MA Period %2d) Ending Value %.2f' % (self.params.long_interval, self.broker.getvalue()), doprint=True)
+		self.log('(Long Period %2d) (Short period %2d) Ending Value %.2f' % (self.config['sma_long_interval'], self.config['sma_short_interval'], self.broker.getvalue()), doprint=True)
 
 	def log(self, txt, dt=None, doprint=False):
 		if doprint:
 			dt = dt or self.datas[0].datetime.date(0)
 			print('%s, %s' % (dt.isoformat(), txt))
+
+class MySizer(with_metaclass(MetaParams, object)):
+
+	params = (
+		('broker', None),
+		('stake', 1)
+		)
+
+	def getsizing(self, data=None, broker=None):
+		broker = broker or self.params.broker
+		return self._getsizing(broker.getcommissioninfo(data),
+							   broker.getcash(), data=data)
+
+	def _getsizing(self, comminfo, cash, data=None):
+		if not data:
+			return self.params.stake
+
+		# Get total available cash and portfolio value
+		cash = self.params.broker.getcash()
+		value = self.params.broker.getvalue()
+		# Get asset price to determine right number of shares to buy
+		price = data.close[0]
+		# Determine number of shares
+		shares = cash / price
+		return shares
+
+	def setsizing(self, stake):
+		self.params.stake = stake
+
+	def setbroker(self, broker):
+		self.params.broker = broker
+
+	def getbroker(self):
+		return self.params.broker

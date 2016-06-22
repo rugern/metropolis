@@ -1,30 +1,39 @@
+import itertools
+
 import backtrader as bt
 
-from sample import config
+from sample import configuration
 
 # Unexpected keyword arguments
 #pylint: disable=E1123
 # Wrong hanging indentation
 #pylint: disable=C0330
 
-def main(long_interval, short_interval, plot=False):
+def main(config, plot):
 	cerebro = bt.Cerebro()
-	cerebro.addstrategy(config.strategy, long_interval=long_interval, short_interval=short_interval)
-	cerebro.adddata(bt.feeds.PandasData(dataname=config.data, datetime=None))
-	cerebro.broker.setcash(config.cash)
-	cerebro.broker.setcommission(commission=config.commission)
-
+	cerebro.addstrategy(config['strategy'], config=config)
+	cerebro.adddata(bt.feeds.PandasData(dataname=config['data'], datetime=None))
+	cerebro.broker.setcash(config['cash'])
+	cerebro.broker.setcommission(commission=config['commission'])
 	cerebro.run()
 	if(plot): cerebro.plot()
 	return
 
 if __name__ == '__main__':
-	mode = 'backtest'
+	config = configuration.getConfigFile('parameters/parameters.json')
+	mode = config['mode']
 
-	config.initialize('strategies/strategy.json')
-	print('Starting Portfolio Value: %.2f' % config.cash)
-	if(mode == 'backtest'):
-		for i in range(20, 25):
-			main(i, config.sma_short_interval)
+	print('Starting Portfolio Value: %.2f' % config['cash'])
+	if(mode == 'optimize'):
+		start, size = (), ()
+		for key in config['optimize']:
+			start += (config[key],)
+			size += (config['optimize'][key],)
+		for number in itertools.product(*[range(i, i + j) for i, j in zip(start, size)]):
+			index = 0
+			for key in config['optimize']:
+				config[key] = number[index]
+				index += 1
+			main(config, config['plot'])
 	else:
-		main(config.sma_long_interval, config.sma_short_interval, True)
+		main(config, config['plot'])
