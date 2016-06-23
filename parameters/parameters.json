@@ -1,14 +1,21 @@
 {
 	"startDate": "01.01.16",
-	"endDate": "01.05.16",
+	"endDate": "01.02.16",
 	"data_path": "Result-OHLC.pkl",
-	"mode": "plot",
+	"mode": "backtest",
+	"plot": 0,
 	"cash": 100000.0,
+	"commission": 0.0,
+	"stake": 10,
 	"strategy":"test",
 
 	"leverage":50,
 	"sma_long_interval": 20,
 	"sma_short_interval": 5,
 	"bbands_interval": 20,
-	"bbands_deviation": 2
+	"bbands_deviation": 2,
+	"optimize": {
+		"sma_long_interval":10,
+		"sma_short_interval":5
+	}
 }
