@@ -4,6 +4,7 @@ from datetime import datetime
 import pandas
 
 from sample import strategies
+from sample import engine as system
 
 # Too many ancestors
 #pylint: disable=R0901
@@ -18,6 +19,7 @@ def getConfigFile(path):
 	config['endDate'] = datetime.strptime(config['endDate'], '%d.%m.%y')
 	config['data'] = pandas.read_pickle(config['data_path']).truncate(config['startDate'], config['endDate'])
 	config['strategy'] = getStrategy()
+	config['broker'] = getBroker()
 	return config
 
 def readConfigFile(path):
@@ -33,3 +35,6 @@ def writeConfigFile(content, path):
 
 def getStrategy():
 	return strategies.TestStrategy
+
+def getBroker():
+	return system.Broker

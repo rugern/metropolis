@@ -1,8 +1,3 @@
-from six import with_metaclass
-from backtrader.metabase import MetaParams
-
-import backtrader as bt
-
 from sample import statistic
 
 # Too many ancestors
@@ -22,7 +17,11 @@ from sample import statistic
 # Wrong hanging indentation
 #pylint: disable=C0330
 
-class TestStrategy(bt.Strategy):
+class Strategy:
+	inPosition = False
+
+
+class TestStrategy(Strategy):
 	params = (
 		('config', 0),
 	)
@@ -42,13 +41,6 @@ class TestStrategy(bt.Strategy):
 
 		self.long_sma = bt.indicators.SimpleMovingAverage(self.datas[0], period=self.config['sma_long_interval'])
 		self.short_sma = bt.indicators.SimpleMovingAverage(self.datas[0], period=self.config['sma_short_interval'])
-		bt.indicators.ExponentialMovingAverage(self.datas[0], period=25)
-		bt.indicators.WeightedMovingAverage(self.datas[0], period=25).subplot = True
-		bt.indicators.StochasticSlow(self.datas[0])
-		bt.indicators.MACDHisto(self.datas[0])
-		rsi = bt.indicators.RSI(self.datas[0])
-		bt.indicators.SmoothedMovingAverage(rsi, period=10)
-		bt.indicators.ATR(self.datas[0]).plot = False
 
 	def notify_order(self, order):
 		if order.status in [order.Submitted, order.Accepted]:
@@ -95,7 +87,7 @@ class TestStrategy(bt.Strategy):
 			dt = dt or self.datas[0].datetime.date(0)
 			print('%s, %s' % (dt.isoformat(), txt))
 
-class MySizer(with_metaclass(MetaParams, object)):
+class KellySizer():
 
 	params = (
 		('broker', None),
