@@ -6,17 +6,21 @@ class Engine:
 	strategy = None
 	data = None
 	broker = None
-
-	def __init__(self):
+	sizer = None
 
 	def addStrategy(self, strategy):
 		self.strategy = strategy
+		self.indicators.append(strategy)
+		return strategy
 
 	def addData(self, data):
 		self.data = data
 
 	def addBroker(self, broker):
 		self.broker = broker
+
+	def addSizer(self, sizer):
+		self.sizer = sizer
 
 	def run(self):
 		for i in range(len(self.data)):

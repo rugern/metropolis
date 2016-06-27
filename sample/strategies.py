@@ -19,28 +19,22 @@ from sample import statistic
 
 class Strategy:
 	inPosition = False
+	data = []
+	bar_executed = 0
+	order = None
 
 
 class TestStrategy(Strategy):
-	params = (
-		('config', 0),
-	)
 	config = None
 	buy_history = []
 	sell_history = []
 	position = False
 
-	def __init__(self):
-		self.config = self.params.config
+	def __init__(self, config):
+		self.config = config
 
-		self.dataclose = self.datas[0].close
-		self.setsizer(MySizer())
-		self.sizer.setsizing(self.config['stake'])
-		self.bar_executed = 0
-		self.order = None
-
-		self.long_sma = bt.indicators.SimpleMovingAverage(self.datas[0], period=self.config['sma_long_interval'])
-		self.short_sma = bt.indicators.SimpleMovingAverage(self.datas[0], period=self.config['sma_short_interval'])
+		self.long_sma = SimpleMovingAverage(period=self.config['sma_long_interval'])
+		self.short_sma = SimpleMovingAverage(period=self.config['sma_short_interval'])
 
 	def notify_order(self, order):
 		if order.status in [order.Submitted, order.Accepted]:
@@ -86,37 +80,3 @@ class TestStrategy(Strategy):
 		if doprint:
 			dt = dt or self.datas[0].datetime.date(0)
 			print('%s, %s' % (dt.isoformat(), txt))
-
-class KellySizer():
-
-	params = (
-		('broker', None),
-		('stake', 1)
-		)
-
-	def getsizing(self, data=None, broker=None):
-		broker = broker or self.params.broker
-		return self._getsizing(broker.getcommissioninfo(data),
-							   broker.getcash(), data=data)
-
-	def _getsizing(self, comminfo, cash, data=None):
-		if not data:
-			return self.params.stake
-
-		# Get total available cash and portfolio value
-		cash = self.params.broker.getcash()
-		value = self.params.broker.getvalue()
-		# Get asset price to determine right number of shares to buy
-		price = data.close[0]
-		# Determine number of shares
-		shares = cash / price
-		return shares
-
-	def setsizing(self, stake):
-		self.params.stake = stake
-
-	def setbroker(self, broker):
-		self.params.broker = broker
-
-	def getbroker(self):
-		return self.params.broker

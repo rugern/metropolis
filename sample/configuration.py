@@ -19,7 +19,7 @@ def getConfigFile(path):
 	config['endDate'] = datetime.strptime(config['endDate'], '%d.%m.%y')
 	config['data'] = pandas.read_pickle(config['data_path']).truncate(config['startDate'], config['endDate'])
 	config['strategy'] = getStrategy()
-	config['broker'] = getBroker()
+	config['broker'] = getBroker(config['cash'])
 	return config
 
 def readConfigFile(path):
@@ -36,5 +36,5 @@ def writeConfigFile(content, path):
 def getStrategy():
 	return strategies.TestStrategy
 
-def getBroker():
-	return system.Broker
+def getBroker(cash):
+	return system.Broker(cash)

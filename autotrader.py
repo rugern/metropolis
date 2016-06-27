@@ -12,7 +12,8 @@ def main(config, plot):
 	engine = system.Engine()
 	engine.addStrategy(config['strategy'](config))
 	engine.addData(config['data'])
-	engine.addBroker(config['broker'](config['cash'], config['sizer']))
+	engine.addBroker(config['broker'])
+	engine.addSizer(config['sizer'])
 	engine.run()
 	if(plot): engine.plot()
 	return
