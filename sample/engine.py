@@ -29,19 +29,11 @@ class Engine:
 			signal = self.strategy.next()
 			if(signal == 'buy'):
 				size = self.sizer.getSizing(self.data[:i])
-				strategy.inPosition = self.broker.buy(size)
+				self.strategy.inPosition = self.broker.buy(ratio=size)
 			else:
-				strategy.inPosition = self.broker.sell()
+				self.strategy.inPosition = self.broker.sell(ratio=1)
 
 	def plot(self):
-		for indicator in indicators:
+		for indicator in self.indicators:
 			pyplot.plot(indicator)
 		pyplot.show()
-
-
-class Broker:
-
-	cash = 0
-
-	def __init__(self, cash):
-		self.cash = cash

@@ -1,4 +1,5 @@
 from sample import statistic
+from sample import indicators
 
 # Too many ancestors
 #pylint: disable=R0901
@@ -23,6 +24,17 @@ class Strategy:
 	bar_executed = 0
 	order = None
 
+	def __init__(self, config):
+		self.config = config
+
+	def stop(self):
+		self.log('(Long Period %2d) (Short period %2d) Ending Value %.2f' % (self.config['sma_long_interval'], self.config['sma_short_interval'], self.broker.getvalue()), doprint=True)
+
+	def log(self, txt, dt=None, doprint=False):
+		if doprint:
+			dt = dt or self.datas[0].datetime.date(0)
+			print('%s, %s' % (dt.isoformat(), txt))
+
 
 class TestStrategy(Strategy):
 	config = None
@@ -31,10 +43,11 @@ class TestStrategy(Strategy):
 	position = False
 
 	def __init__(self, config):
-		self.config = config
+		super().__init__(config)
 
-		self.long_sma = SimpleMovingAverage(period=self.config['sma_long_interval'])
-		self.short_sma = SimpleMovingAverage(period=self.config['sma_short_interval'])
+		self.long_sma = indicators.SimpleMovingAverage(self.config['sma_long_interval'])
+		self.short_sma = indicators.SimpleMovingAverage(self.config['sma_short_interval'])
+		self.indicators.append(self.long_sma, self.short_sma)
 
 	def notify_order(self, order):
 		if order.status in [order.Submitted, order.Accepted]:
@@ -50,12 +63,6 @@ class TestStrategy(Strategy):
 
 		self.order = None
 
-	def notify_trade(self, trade):
-		if not trade.isclosed:
-			return
-
-		self.log('OPERATION PROFIT, GROSS %.2f, NET %.2f' % (trade.pnl, trade.pnlcomm))
-
 
 	def next(self):
 		if self.order:
@@ -63,20 +70,12 @@ class TestStrategy(Strategy):
 
 		if not self.position:
 			if self.long_sma[0] < self.short_sma[0]:
-				self.order = self.buy()
-				self.position = True
 				position_size = statistic.kellyCriterion(self.buy_history, self.sell_history)
+				self.order = self.buy(ratio=position_size)
+				self.position = True
 				self.buy_history.append(self.dataclose[0])
 		else:
 			if self.short_sma[0] < self.long_sma[0]:
-				self.order = self.sell()
+				self.order = self.sell(ratio=1)
 				self.position = False
 				self.sell_history.append(self.dataclose[0] * self.config['stake'])
-
-	def stop(self):
-		self.log('(Long Period %2d) (Short period %2d) Ending Value %.2f' % (self.config['sma_long_interval'], self.config['sma_short_interval'], self.broker.getvalue()), doprint=True)
-
-	def log(self, txt, dt=None, doprint=False):
-		if doprint:
-			dt = dt or self.datas[0].datetime.date(0)
-			print('%s, %s' % (dt.isoformat(), txt))

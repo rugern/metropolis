@@ -4,8 +4,8 @@ def kellyCriterion(buy, sell):
 	if(len(buy) == 0): return 0.2
 	wins = 0
 	profits = []
-	for i in range(len(buy)):
-		profits.append(sell[i] - buy[i])
+	for index in enumerate(buy):
+		profits.append(sell[index] - buy[index])
 		if(profits[-1] > 0): wins += 1
 
 	if(wins == len(buy)): return 0.2
