@@ -23,6 +23,10 @@ class Strategy:
 	data = []
 	bar_executed = 0
 	order = None
+	buy = None
+	sell = None
+	buy_history = []
+	sell_history = []
 
 	def __init__(self, config):
 		self.config = config
@@ -38,9 +42,6 @@ class Strategy:
 
 class TestStrategy(Strategy):
 	config = None
-	buy_history = []
-	sell_history = []
-	position = False
 
 	def __init__(self, config):
 		super().__init__(config)
@@ -68,14 +69,9 @@ class TestStrategy(Strategy):
 		if self.order:
 			return
 
-		if not self.position:
+		if not self.inPosition:
 			if self.long_sma[0] < self.short_sma[0]:
-				position_size = statistic.kellyCriterion(self.buy_history, self.sell_history)
-				self.order = self.buy(ratio=position_size)
-				self.position = True
-				self.buy_history.append(self.dataclose[0])
+				self.order = self.buy()
 		else:
 			if self.short_sma[0] < self.long_sma[0]:
-				self.order = self.sell(ratio=1)
-				self.position = False
-				self.sell_history.append(self.dataclose[0] * self.config['stake'])
+				self.order = self.sell()

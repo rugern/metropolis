@@ -5,11 +5,14 @@ class Engine:
 	indicators = []
 	strategy = None
 	data = None
+	current_data_entry = None
 	broker = None
 	sizer = None
 
 	def addStrategy(self, strategy):
 		self.strategy = strategy
+		self.strategy.buy = self.buy
+		self.strategy.sell = self.sell
 		self.indicators.append(strategy)
 		return strategy
 
@@ -22,16 +25,19 @@ class Engine:
 	def addSizer(self, sizer):
 		self.sizer = sizer
 
+	def buy(self):
+		ratio = self.sizer.getSize(self.broker.buy_history, self.broker.sell_history)
+		self.broker.buy(ratio, self.current_data_entry)
+
+	def sell(self):
+		ratio = 1
+		self.broker.sell(ratio, self.current_data_entry)
+
 	def run(self):
 		for i in range(len(self.data)):
-			entry = self.data['buy']['close'][i]
-			self.strategy.pushData(entry)
-			signal = self.strategy.next()
-			if(signal == 'buy'):
-				size = self.sizer.getSizing(self.data[:i])
-				self.strategy.inPosition = self.broker.buy(ratio=size)
-			else:
-				self.strategy.inPosition = self.broker.sell(ratio=1)
+			current_data_entry = self.data['buy']['close'][i]
+			self.strategy.pushData(current_data_entry)
+			self.strategy.next()
 
 	def plot(self):
 		for indicator in self.indicators:
