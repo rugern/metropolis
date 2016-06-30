@@ -13,7 +13,7 @@ class Engine:
 		self.strategy = strategy
 		self.strategy.buy = self.buy
 		self.strategy.sell = self.sell
-		self.indicators.append(strategy)
+		self.indicators = self.strategy.indicators
 		return strategy
 
 	def addData(self, data):
@@ -26,7 +26,7 @@ class Engine:
 		self.sizer = sizer
 
 	def buy(self):
-		ratio = self.sizer.getSize(self.broker.buy_history, self.broker.sell_history)
+		ratio = self.sizer(self.broker.buy_history, self.broker.sell_history)
 		self.broker.buy(ratio, self.current_data_entry)
 
 	def sell(self):
@@ -34,10 +34,12 @@ class Engine:
 		self.broker.sell(ratio, self.current_data_entry)
 
 	def run(self):
+		if(any(item is None for item in [self.strategy, self.broker, self.sizer, self.data])): raise ValueError('Missing required data in Engine')
 		for i in range(len(self.data)):
-			current_data_entry = self.data['buy']['close'][i]
-			self.strategy.pushData(current_data_entry)
+			self.current_data_entry = self.data['buy']['close'][i]
+			self.strategy.addDataEntry(self.current_data_entry)
 			self.strategy.next()
+		self.strategy.stop()
 
 	def plot(self):
 		for indicator in self.indicators:

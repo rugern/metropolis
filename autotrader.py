@@ -28,7 +28,7 @@ def optimize(config, plot):
 		for key in config['optimize']:
 			config[key] = number[index]
 			index += 1
-		main(config, config['plot'])
+		main(config, plot)
 
 if __name__ == '__main__':
 	config = configuration.getConfigFile('parameters/parameters.json')
