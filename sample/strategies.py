@@ -27,13 +27,8 @@ class Strategy:
 	def __init__(self, config):
 		self.config = config
 
-	def stop(self):
-		self.log('(Long Period %2d) (Short period %2d) Ending Value %.2f' % (self.config['sma_long_interval'], self.config['sma_short_interval'], self.broker.getValue()), doprint=True)
-
-	def log(self, txt, dt=None, doprint=False):
-		if doprint:
-			dt = dt or self.datas[0].datetime.date(0)
-			print('%s, %s' % (dt.isoformat(), txt))
+	def stop(self, value):
+		print('(Long: {0}) (Short: {1}) Ending value: {2:.2f}'.format(self.config['sma_long_interval'], self.config['sma_short_interval'], value))
 
 	def addDataEntry(self, entry):
 		self.data.append(entry)
