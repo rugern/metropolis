@@ -8,6 +8,7 @@
 	"commission": 0.0,
 	"stake": 10,
 	"strategy":"test",
+	"sizer":"kelly",
 
 	"leverage":50,
 	"sma_long_interval": 20,
