@@ -5,16 +5,13 @@
 	"mode": "backtest",
 	"plot": 0,
 	"cash": 100000.0,
-	"commission": 0.0,
-	"stake": 10,
-	"strategy":"test",
-	"sizer":"kelly",
+	"strategy_name":"test",
+	"sizer_name":"kelly",
+	"loss_stop": 0.001,
 
 	"leverage":50,
 	"sma_long_interval": 20,
 	"sma_short_interval": 5,
-	"bbands_interval": 20,
-	"bbands_deviation": 2,
 	"optimize": {
 		"sma_long_interval":10,
 		"sma_short_interval":5

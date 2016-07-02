@@ -46,6 +46,8 @@ class TestStrategy(Strategy):
 
 	def next(self):
 		if not self.in_position:
-			self.buy()
+			if(self.long_sma[-1] < self.short_sma[-1]):
+				self.buy()
 		else:
-			self.sell()
+			if(self.long_sma[-1] > self.short_sma[-1]):
+				self.sell()

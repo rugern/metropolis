@@ -28,6 +28,7 @@ def optimize(config, plot):
 		for key in config['optimize']:
 			config[key] = number[index]
 			index += 1
+		config = configuration.initializeObjects(config)
 		main(config, plot)
 
 if __name__ == '__main__':
