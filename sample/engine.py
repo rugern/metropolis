@@ -2,12 +2,13 @@ import matplotlib.pyplot as pyplot
 
 class Engine:
 
-	indicators = []
-	strategy = None
-	data = None
-	current_data_entry = None
-	broker = None
-	sizer = None
+	def __init__(self):
+		self.indicators = []
+		self.strategy = None
+		self.data = None
+		self.current_data_entry = None
+		self.broker = None
+		self.sizer = None
 
 	def addStrategy(self, strategy):
 		self.strategy = strategy
@@ -17,7 +18,7 @@ class Engine:
 		return strategy
 
 	def addData(self, data):
-		self.data = data
+		self.data = data['buy']['close'].values
 
 	def addBroker(self, broker):
 		self.broker = broker
@@ -38,7 +39,7 @@ class Engine:
 	def run(self):
 		if(any(item is None for item in [self.strategy, self.broker, self.sizer, self.data])): raise ValueError('Missing required data in Engine')
 		for i in range(len(self.data)):
-			self.current_data_entry = self.data['buy']['close'][i]
+			self.current_data_entry = self.data[i]
 			self.strategy.addDataEntry(self.current_data_entry)
 			for indicator in self.indicators:
 				indicator.addData(self.current_data_entry)
@@ -47,5 +48,6 @@ class Engine:
 
 	def plot(self):
 		for indicator in self.indicators:
-			pyplot.plot(indicator)
+			pyplot.plot(indicator.getResult())
+		pyplot.plot(self.data)
 		pyplot.show()

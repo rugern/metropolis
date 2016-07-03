@@ -18,14 +18,14 @@ from sample import analytics
 #pylint: disable=C0330
 
 class Strategy:
-	in_position = False
-	data = []
-	buy = None
-	sell = None
-	indicators = []
 
 	def __init__(self, config):
 		self.config = config
+		self.in_position = False
+		self.data = []
+		self.buy = None
+		self.sell = None
+		self.indicators = []
 
 	def stop(self, value):
 		print('(Long: {0}) (Short: {1}) Ending value: {2:.2f}'.format(self.config['sma_long_interval'], self.config['sma_short_interval'], value))
@@ -35,7 +35,6 @@ class Strategy:
 
 
 class TestStrategy(Strategy):
-	config = None
 
 	def __init__(self, config):
 		super().__init__(config)

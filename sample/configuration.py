@@ -19,10 +19,6 @@ def getConfigFile(path):
 	config['startDate'] = datetime.strptime(config['startDate'], '%d.%m.%y')
 	config['endDate'] = datetime.strptime(config['endDate'], '%d.%m.%y')
 	config['data'] = pandas.read_pickle(config['data_path']).truncate(config['startDate'], config['endDate'])
-	config = initializeObjects(config)
-	return config
-
-def initializeObjects(config):
 	config['strategy'] = getStrategy(config['strategy_name'])
 	config['broker'] = getBroker(config['cash'])
 	config['sizer'] = getSizer(config['sizer_name'])
