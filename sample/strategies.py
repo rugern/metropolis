@@ -25,10 +25,11 @@ class Strategy:
 		self.data = []
 		self.buy = None
 		self.sell = None
+		self.broker = None
 		self.indicators = []
 
-	def stop(self, value):
-		print('(Long: {0}) (Short: {1}) Ending value: {2:.2f}'.format(self.config['sma_long_interval'], self.config['sma_short_interval'], value))
+	def stop(self):
+		print('(Long: {0}) (Short: {1}) (Stop: {2}) Ending value: {3:.2f}'.format(self.config['sma_long_interval'], self.config['sma_short_interval'], self.config['stop_loss'], self.broker.getValue()))
 
 	def addDataEntry(self, entry):
 		self.data.append(entry)
@@ -48,5 +49,8 @@ class TestStrategy(Strategy):
 			if(self.long_sma[-1] < self.short_sma[-1]):
 				self.buy()
 		else:
-			if(self.long_sma[-1] > self.short_sma[-1]):
+			# print('Loss: {}, cash: {}, stop_loss: {}'.format(self.broker.loss, self.broker.cash, self.config['stop_loss']))
+			if(self.broker.loss >= self.broker.cash * self.config['stop_loss']):
+				self.sell()
+			elif(self.long_sma[-1] > self.short_sma[-1]):
 				self.sell()

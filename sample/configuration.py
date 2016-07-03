@@ -5,6 +5,7 @@ import pandas
 
 from sample import strategies
 from sample import sizers
+from sample import utility
 from sample import brokers
 
 # Too many ancestors

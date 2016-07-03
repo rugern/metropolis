@@ -1,12 +1,11 @@
 class Broker:
 
-	cash = 0
-	position_size = 0
-	buy_history = []
-	sell_history = []
-
 	def __init__(self, cash):
 		self.cash = cash
+		self.position_size = 0
+		self.buy_history = []
+		self.sell_history = []
+		self.loss = 0
 
 	def buy(self, ratio, price):
 		if(self.position_size != 0): raise ValueError('Should not buy if already in position!')
@@ -16,6 +15,11 @@ class Broker:
 
 	def sell(self, ratio, price):
 		if(self.position_size == 0): raise ValueError('Cannot sell if not in position!')
+
+		if(price < self.buy_history[-1]):
+			self.loss += self.position_size * (self.buy_history[-1] - price)
+		else: self.loss = 0
+
 		self.cash += self.position_size * price
 		self.position_size = 0
 		self.sell_history.append(price)

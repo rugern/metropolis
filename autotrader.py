@@ -19,16 +19,13 @@ def main(config, plot):
 	return
 
 def optimize(config, plot):
-	start, size = (), ()
-	for key in config['optimize']:
-		start += (config[key],)
-		size += (config['optimize'][key],)
-	for number in itertools.product(*[range(i, i + j) for i, j in zip(start, size)]):
+	values = [value for key, value in config['optimize'].items()]
+	for numbers in itertools.product(*values):
+		config = configuration.getConfigFile('parameters/parameters.json')
 		index = 0
 		for key in config['optimize']:
-			config[key] = number[index]
+			config[key] = numbers[index]
 			index += 1
-		config = configuration.getConfigFile('parameters/parameters.json')
 		main(config, plot)
 
 if __name__ == '__main__':

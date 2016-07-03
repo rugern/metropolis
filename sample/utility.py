@@ -1,3 +1,5 @@
+import collections
+
 import pandas
 
 def convertToRegularTime(datetime):

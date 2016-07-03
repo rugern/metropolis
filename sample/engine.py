@@ -15,6 +15,7 @@ class Engine:
 		self.strategy.buy = self.buy
 		self.strategy.sell = self.sell
 		self.indicators = self.strategy.indicators
+		if(self.broker is not None): self.strategy.broker = self.broker
 		return strategy
 
 	def addData(self, data):
@@ -22,6 +23,7 @@ class Engine:
 
 	def addBroker(self, broker):
 		self.broker = broker
+		if(self.strategy is not None): self.strategy.broker = self.broker
 
 	def addSizer(self, sizer):
 		self.sizer = sizer
@@ -44,7 +46,7 @@ class Engine:
 			for indicator in self.indicators:
 				indicator.addData(self.current_data_entry)
 			self.strategy.next()
-		self.strategy.stop(self.broker.getValue())
+		self.strategy.stop()
 
 	def plot(self):
 		for indicator in self.indicators:
