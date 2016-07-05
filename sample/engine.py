@@ -1,10 +1,13 @@
 import matplotlib.pyplot as pyplot
 
+from sample import utility
+
 class Engine:
 
 	def __init__(self):
 		self.indicators = []
 		self.strategy = None
+		self.datetimes = None
 		self.data = None
 		self.current_data_entry = None
 		self.broker = None
@@ -19,6 +22,7 @@ class Engine:
 		return strategy
 
 	def addData(self, data):
+		self.datetimes = data.index.values
 		self.data = data['buy']['close'].values
 
 	def addBroker(self, broker):
@@ -52,4 +56,10 @@ class Engine:
 		for indicator in self.indicators:
 			pyplot.plot(indicator.getResult())
 		pyplot.plot(self.data)
+
+		ticks = 10
+		interval = len(self.datetimes) // ticks
+		labels = [utility.datetimeToString(item) for index, item in enumerate(self.datetimes) if index % interval == 0]
+		pyplot.xticks([i * interval for i in range(ticks)], labels, size='small', rotation=45)
+
 		pyplot.show()

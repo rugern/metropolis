@@ -1,5 +1,3 @@
-import collections
-
 import pandas
 
 def convertToRegularTime(datetime):
@@ -9,12 +7,12 @@ def convertToRegularTime(datetime):
 	return (hours, minutes, seconds)
 
 def arrayToString(array):
-	return '{0}'.format(', '.join(map(lambda x: str(x), array)))
+	return '{}'.format(', '.join(map(lambda x: str(x), array)))
 
 def dictionaryToString(dictionary):
 	strings = []
 	for key in dictionary:
-		strings.append('{0}:{1}'.format(key, dictionary[key]))
+		strings.append('{}:{}'.format(key, dictionary[key]))
 	return ', '.join(strings)
 
 def mergeDictionaries(base, overwrites):
@@ -24,5 +22,5 @@ def mergeDictionaries(base, overwrites):
 
 def datetimeToString(dt):
 	time = pandas.to_datetime(str(dt))
-	string = time.strftime('%H:%M')
+	string = time.strftime('%d.%mT%H:%M')
 	return string

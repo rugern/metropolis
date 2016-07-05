@@ -1,9 +1,9 @@
 {
 	"startDate": "01.01.16",
 	"endDate": "01.02.16",
-	"data_path": "Result-OHLC.pkl",
-	"mode": "optimize",
-	"plot": 0,
+	"data_path": "15min-OHLC.pkl",
+	"mode": "bt",
+	"plot": 1,
 	"cash": 100000.0,
 	"strategy_name":"test",
 	"sizer_name":"kelly",
