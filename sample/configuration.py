@@ -42,7 +42,7 @@ def getBroker(cash):
 	return brokers.Broker(cash)
 
 def getStrategy(strategy_name):
-	if(strategy_name == 'sma'): return strategies.DoubleMovingAverages
+	if(strategy_name == 'sma'): return strategies.MovingAveragesStrategy
 	elif(strategy_name == 'ml'): return strategies.LRStrategy
 	raise ValueError('Strategy not found')
 

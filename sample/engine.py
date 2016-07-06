@@ -48,8 +48,6 @@ class Engine:
 		for i in range(len(self.data)):
 			self.current_data_entry = self.data[i]
 			self.strategy.addDataEntry(self.current_data_entry)
-			for indicator in self.indicators:
-				indicator.addData(self.current_data_entry)
 			self.strategy.next()
 		self.strategy.stop()
 
