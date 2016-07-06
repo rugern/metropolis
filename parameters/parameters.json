@@ -1,11 +1,13 @@
 {
-	"startDate": "01.01.16",
-	"endDate": "01.02.16",
+	"startDate": "01.02.16",
+	"endDate": "01.03.16",
+	"startTrain": "01.01.16",
+	"endTrain": "01.02.16",
 	"data_path": "15min-OHLC.pkl",
 	"mode": "bt",
-	"plot": 1,
+	"plot": 0,
 	"cash": 100000.0,
-	"strategy_name":"test",
+	"strategy_name":"ml",
 	"sizer_name":"kelly",
 	"stop_loss": 0.01,
 

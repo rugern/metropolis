@@ -19,7 +19,9 @@ def getConfigFile(path):
 	config = readConfigFile(path)
 	config['startDate'] = datetime.strptime(config['startDate'], '%d.%m.%y')
 	config['endDate'] = datetime.strptime(config['endDate'], '%d.%m.%y')
-	config['data'] = pandas.read_pickle(config['data_path']).truncate(config['startDate'], config['endDate'])
+	config['startTrain'] = datetime.strptime(config['startTrain'], '%d.%m.%y')
+	config['endTrain'] = datetime.strptime(config['endTrain'], '%d.%m.%y')
+	config['data'] = pandas.read_pickle(config['data_path'])
 	config['strategy'] = getStrategy(config['strategy_name'])
 	config['broker'] = getBroker(config['cash'])
 	config['sizer'] = getSizer(config['sizer_name'])
@@ -40,7 +42,8 @@ def getBroker(cash):
 	return brokers.Broker(cash)
 
 def getStrategy(strategy_name):
-	if(strategy_name == 'test'): return strategies.TestStrategy
+	if(strategy_name == 'sma'): return strategies.DoubleMovingAverages
+	elif(strategy_name == 'ml'): return strategies.LRStrategy
 	raise ValueError('Strategy not found')
 
 def getSizer(sizer_name):

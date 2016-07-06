@@ -11,7 +11,7 @@ from sample import engine as system
 def main(config, plot):
 	engine = system.Engine()
 	engine.addStrategy(config['strategy'](config))
-	engine.addData(config['data'])
+	engine.addData(config['data'], config['startDate'], config['endDate'])
 	engine.addBroker(config['broker'])
 	engine.addSizer(config['sizer'])
 	engine.run()

@@ -21,7 +21,8 @@ class Engine:
 		if(self.broker is not None): self.strategy.broker = self.broker
 		return strategy
 
-	def addData(self, data):
+	def addData(self, data, start=None, end=None):
+		if(start and end): data = data.truncate(start, end)
 		self.datetimes = data.index.values
 		self.data = data['buy']['close'].values
 

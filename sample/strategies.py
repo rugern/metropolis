@@ -1,3 +1,5 @@
+from sklearn.linear_model import LogisticRegression
+
 from sample import analytics
 
 # Too many ancestors
@@ -35,7 +37,7 @@ class Strategy:
 		self.data.append(entry)
 
 
-class TestStrategy(Strategy):
+class DoubleMovingAverages(Strategy):
 
 	def __init__(self, config):
 		super().__init__(config)
@@ -54,3 +56,19 @@ class TestStrategy(Strategy):
 				self.sell()
 			elif(self.long_sma[-1] > self.short_sma[-1]):
 				self.sell()
+
+class LRStrategy(Strategy):
+	def __init__(self, config):
+		super().__init__(config)
+
+		self.strategy = LogisticRegression()
+		self.indicators.append(self.strategy)
+		self.training_data = config['data'].truncate(config['startTrain'], config['endTrain'])['buy']['close'].values
+		self.targets = self.getTargets(self.training_data)
+
+	def getTargets(self, data):
+		targets = [data[index] <= data[index + 1] for index in range(len(data) - 1)]
+		return targets
+
+	def next(self):
+		pass
