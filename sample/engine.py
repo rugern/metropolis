@@ -8,7 +8,10 @@ class Engine:
 		self.indicators = []
 		self.strategy = None
 		self.datetimes = None
-		self.data = None
+		self.open = None
+		self.high = None
+		self.low = None
+		self.close = None
 		self.current_data_entry = None
 		self.broker = None
 		self.sizer = None
@@ -24,7 +27,10 @@ class Engine:
 	def addData(self, data, start=None, end=None):
 		if(start and end): data = data.truncate(start, end)
 		self.datetimes = data.index.values
-		self.data = data['buy']['close'].values
+		self.open = data['buy']['open'].values
+		self.high = data['buy']['high'].values
+		self.low = data['buy']['low'].values
+		self.close = data['buy']['close'].values
 
 	def addBroker(self, broker):
 		self.broker = broker
@@ -44,17 +50,17 @@ class Engine:
 		self.strategy.in_position = False
 
 	def run(self):
-		if(any(item is None for item in [self.strategy, self.broker, self.sizer, self.data])): raise ValueError('Missing required data in Engine')
-		for i in range(len(self.data)):
-			self.current_data_entry = self.data[i]
+		if(any(item is None for item in [self.strategy, self.broker, self.sizer, self.datetimes])): raise ValueError('Missing required data in Engine')
+		for i in range(len(self.open)):
+			self.current_data_entry = (self.open[i], self.high[i], self.low[i], self.close[i])
 			self.strategy.addDataEntry(self.current_data_entry)
 			self.strategy.next()
 		self.strategy.stop()
 
 	def plot(self):
 		for indicator in self.indicators:
-			pyplot.plot(indicator.getResult())
-		pyplot.plot(self.data)
+			pyplot.plot(indicator.getHistory())
+		pyplot.plot(self.close)
 
 		ticks = 10
 		interval = len(self.datetimes) // ticks

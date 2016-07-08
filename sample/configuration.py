@@ -42,8 +42,8 @@ def getBroker(cash):
 	return brokers.Broker(cash)
 
 def getStrategy(strategy_name):
-	if(strategy_name == 'sma'): return strategies.MovingAveragesStrategy
-	elif(strategy_name == 'ml'): return strategies.LRStrategy
+	if(strategy_name == 'sma'): return strategies.MovingAverages
+	elif(strategy_name == 'ml'): return strategies.LogisticRegression
 	raise ValueError('Strategy not found')
 
 def getSizer(sizer_name):

@@ -1,4 +1,4 @@
-from sample import analytics
+from sample import indicators
 
 # Too many ancestors
 #pylint: disable=R0901
@@ -22,7 +22,10 @@ class Strategy:
 	def __init__(self, config):
 		self.config = config
 		self.in_position = False
-		self.data = []
+		self.open = []
+		self.high = []
+		self.low = []
+		self.close = []
 		self.buy = None
 		self.sell = None
 		self.broker = None
@@ -31,19 +34,22 @@ class Strategy:
 	def stop(self):
 		print('(Long: {0}) (Short: {1}) (Stop: {2}) Ending value: {3:.2f}'.format(self.config['sma_long_interval'], self.config['sma_short_interval'], self.config['stop_loss'], self.broker.getValue()))
 
-	def addDataEntry(self, entry):
-		self.data.append(entry)
+	def addDataEntry(self, open, high, low, close):
+		self.open.append(open)
+		self.high.append(high)
+		self.low.append(low)
+		self.close.append(close)
 		for indicator in self.indicators:
-			indicator.addDataEntry(entry)
+			indicator.addDataEntry(open, high, low, close)
 
 
-class MovingAveragesStrategy(Strategy):
+class MovingAverages(Strategy):
 
 	def __init__(self, config):
 		super().__init__(config)
 
-		self.long_sma = analytics.SimpleMovingAverage(self.config['sma_long_interval'])
-		self.short_sma = analytics.SimpleMovingAverage(self.config['sma_short_interval'])
+		self.long_sma = indicators.SimpleMovingAverage(self.config['sma_long_interval'])
+		self.short_sma = indicators.SimpleMovingAverage(self.config['sma_short_interval'])
 		self.indicators.extend([self.long_sma, self.short_sma])
 
 	def next(self):
@@ -56,13 +62,13 @@ class MovingAveragesStrategy(Strategy):
 			elif(self.long_sma[-1] > self.short_sma[-1]):
 				self.sell()
 
-class LRStrategy(Strategy):
+class LogisticRegression(Strategy):
 	def __init__(self, config):
 		super().__init__(config)
 
 		training_data = config['data'].truncate(config['startTrain'], config['endTrain'])['buy']['close'].values
 		targets = self.getTargets(training_data)
-		self.strategy = analytics.LogisticRegression(training_data, targets)
+		self.strategy = indicators.LogisticRegression(training_data, targets)
 		self.indicators.append(self.strategy)
 
 	def getTargets(self, data):
