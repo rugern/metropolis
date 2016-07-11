@@ -1,6 +1,3 @@
-Legg til Sharpe ratio
-
-Implementer RINA index
 Momentum
 Sample entropy
 Volatilicy

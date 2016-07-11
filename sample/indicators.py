@@ -49,10 +49,6 @@ class ExponentialMovingAverage(Indicator):
 	def getResult(self):
 		return talib.EMA(array(self.close), timeperiod=self.period)[-1]
 
-class SharpeRatio(Indicator):
-	def getResult(self):
-		pass
-
 class High(Indicator):
 	def getResult(self):
 		return self.high[-1]
@@ -104,7 +100,7 @@ class MovingAverageConvergenceDivergence(Indicator):
 		(macd, macdsignal, macdhist) = talib.MACD(self.close, fastperiod=self.fast_period, slowperiod=self.slow_period, signalperiod=self.signal_period)
 		return (macd, macdsignal, macdhist)
 
-class RelativeStrengthIndex(Indicator):
+class RelativeStrength(Indicator):
 	def __init__(self, period):
 		super().__init__()
 		self.period = period
@@ -119,3 +115,44 @@ class AverageDirectionalMovement(Indicator):
 
 	def getResult(self):
 		return talib.ADX(self.high, self.low, self.close, timeperiod=self.period)
+
+class MaximumDrawdown(Indicator):
+	def __init__(self):
+		super().__init__()
+		self.max = 0
+		self.drawdown = 0
+
+	def getResult(self):
+		value = self.close[-1]
+		if(value > self.max): self.max = value
+		else:
+			difference = self.max - value
+			if(self.drawdown < difference): self.drawdown = difference
+		return self.drawdown
+
+class AverageDrawdown(Indicator):
+	def __init__(self):
+		super().__init__()
+		self.last_high = 0
+		self.last = 0
+		self.drawdowns = []
+
+	def getResult(self):
+		value = self.close[-1]
+		if(value > self.last):
+			self.last_high = value
+		self.drawdowns.append(self.last_high - value)
+		self.last = value
+		return statistics.mean(self.drawdowns)
+
+class RinaIndex(Indicator):
+	def __init__(self, broker, averageDrawdown):
+		super().__init__()
+		self.broker = broker
+		self.averageDrawdown = averageDrawdown
+
+	def getResult(self):
+		deviation = statistics.stdev(self.broker.profits)
+		mean = statistics.mean(self.broker.profits)
+		select = [i for i in self.broker.profits if abs(i - mean) <= 3 * deviation]
+		return select / (self.averageDrawdown[-1] * self.broker.getMarketTime())

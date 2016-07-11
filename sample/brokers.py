@@ -5,6 +5,9 @@ class Broker:
 		self.position_size = 0
 		self.buy_history = []
 		self.sell_history = []
+		self.price_history = []
+		self.profits = []
+		self.ticks_in_market = 0
 		self.loss = 0
 
 	def buy(self, ratio, price):
@@ -23,7 +26,15 @@ class Broker:
 		self.cash += self.position_size * price
 		self.position_size = 0
 		self.sell_history.append(price)
+		self.profits.append(price - self.buy_history[-1])
 
 	def getValue(self):
 		unrealized = 0 if len(self.sell_history) == 0 else self.position_size * self.sell_history[-1]
 		return self.cash + unrealized
+
+	def addDataEntry(self, entry):
+		self.price_history.append(entry)
+		if(len(self.buy_history) > len(self.sell_history)): self.ticks_in_market += 1
+
+	def getMarketTime(self):
+		return self.ticks_in_market / len(self.price_history)

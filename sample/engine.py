@@ -54,6 +54,7 @@ class Engine:
 		for i in range(len(self.open)):
 			self.current_data_entry = (self.open[i], self.high[i], self.low[i], self.close[i])
 			self.strategy.addDataEntry(self.current_data_entry)
+			self.broker.addDataEntry(self.current_data_entry)
 			self.strategy.next()
 		self.strategy.stop()
 
