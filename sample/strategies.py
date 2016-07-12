@@ -1,3 +1,7 @@
+import math
+
+from sklearn import linear_model
+
 from sample import indicators
 
 # Too many ancestors
@@ -66,22 +70,50 @@ class LogisticRegression(Strategy):
 	def __init__(self, config):
 		super().__init__(config)
 
-		training_data = config['data'].truncate(config['startTrain'], config['endTrain'])['buy']['close'].values
-		targets = self.getTargets(training_data)
-		self.strategy = indicators.LogisticRegression(training_data, targets)
-		self.indicators.append(self.strategy)
+		ticks = config['data'].truncate(config['startTrain'], config['endTrain'])
+		self.indicators.append(indicators.SimpleMovingAverage(20))
+		self.indicators.append(indicators.ExponentialMovingAverage(20))
+		self.indicators.append(indicators.High())
+		self.indicators.append(indicators.Low())
+		self.indicators.append(indicators.Close())
+		training_data = self.createTrainingData(ticks)
+		targets = getTargets(training_data)
+		self.LR = linear_model.LogisticRegression()
+		self.LR.fit(training_data, targets)
 
-	def getTargets(self, data):
-		targets = [data[index] <= data[index + 1] for index in range(len(data) - 1)]
-		targets.insert(0, False)
-		return targets
+	def createTrainingData(self, ticks):
+		if(len(self.indicators) == 0): raise ValueError("You need to add indicators before training data can be created")
+
+		training_data = []
+		open = ticks['buy']['open']
+		high = ticks['buy']['high']
+		low = ticks['buy']['low']
+		close = ticks['buy']['close']
+		for index, item in enumerate(close):
+			for indicator in self.indicators:
+				indicator.addDataEntry(open[index], high[index], low[index], close[index])
+			training_data.append(self.getFeatures())
+		return training_data
+
+	def getFeatures(self):
+		if(len(self.indicators) == 0): raise ValueError("You need to add indicators before training data can be created")
+		return [indicator[-1] for indicator in self.indicators]
 
 	def next(self):
+		features = self.getFeatures()
 		if not self.in_position:
-			if(self.strategy.predict()):
+			if(self.LR.predict(features)):
 				self.buy()
 		else:
 			if(self.broker.loss >= self.broker.cash * self.config['stop_loss']):
 				self.sell()
-			elif(not self.strategy.predict()):
+			elif(not self.LR.predict(features)):
 				self.sell()
+
+def getTarget(data, index):
+	if(len(data) <= index + 1): return False
+	if(data[index + 1] > data[index]): return True
+	return False
+
+def getTargets(data):
+	return [getTarget(data, index) for index, item in enumerate(data)]

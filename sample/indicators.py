@@ -39,6 +39,7 @@ class SimpleMovingAverage(Indicator):
 		self.period = period
 
 	def getResult(self):
+		if(len(self.close) < self.period): return 0
 		return talib.SMA(array(self.close), timeperiod=self.period)[-1]
 
 class ExponentialMovingAverage(Indicator):
@@ -47,6 +48,7 @@ class ExponentialMovingAverage(Indicator):
 		self.period = period
 
 	def getResult(self):
+		if(len(self.close) < self.period): return 0
 		return talib.EMA(array(self.close), timeperiod=self.period)[-1]
 
 class High(Indicator):

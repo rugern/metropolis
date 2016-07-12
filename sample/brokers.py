@@ -32,8 +32,8 @@ class Broker:
 		unrealized = 0 if len(self.sell_history) == 0 else self.position_size * self.sell_history[-1]
 		return self.cash + unrealized
 
-	def addDataEntry(self, entry):
-		self.price_history.append(entry)
+	def addDataEntry(self, close):
+		self.price_history.append(close)
 		if(len(self.buy_history) > len(self.sell_history)): self.ticks_in_market += 1
 
 	def getMarketTime(self):

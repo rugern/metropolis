@@ -4,7 +4,6 @@ Volatilicy
 Multi-order derivatives
 
 Implementer walk-forward optimization
-Maximum drawdown er implementert feil
 Finn support and resistance
 Skriv ut statistikk
 Implementer RINA index

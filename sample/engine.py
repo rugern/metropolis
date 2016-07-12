@@ -52,9 +52,8 @@ class Engine:
 	def run(self):
 		if(any(item is None for item in [self.strategy, self.broker, self.sizer, self.datetimes])): raise ValueError('Missing required data in Engine')
 		for i in range(len(self.open)):
-			self.current_data_entry = (self.open[i], self.high[i], self.low[i], self.close[i])
-			self.strategy.addDataEntry(self.current_data_entry)
-			self.broker.addDataEntry(self.current_data_entry)
+			self.strategy.addDataEntry(self.open[i], self.high[i], self.low[i], self.close[i])
+			self.broker.addDataEntry(self.close[i])
 			self.strategy.next()
 		self.strategy.stop()
 
