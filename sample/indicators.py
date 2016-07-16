@@ -27,6 +27,13 @@ class Indicator:
 	def getHistory(self):
 		return self.history
 
+	def clearData(self):
+		self.open = []
+		self.high = []
+		self.low = []
+		self.close = []
+		self.history = []
+
 	@abc.abstractmethod
 	def getResult(self):
 		'''This method should calculate and return the indicator's value given

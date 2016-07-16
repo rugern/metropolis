@@ -30,6 +30,7 @@ class Strategy:
 		self.high = []
 		self.low = []
 		self.close = []
+		self.predictions = []
 		self.buy = None
 		self.sell = None
 		self.broker = None
@@ -71,13 +72,16 @@ class LogisticRegression(Strategy):
 		super().__init__(config)
 
 		ticks = config['data'].truncate(config['startTrain'], config['endTrain'])
+		self.setup_period = 20
 		self.indicators.append(indicators.SimpleMovingAverage(20))
 		self.indicators.append(indicators.ExponentialMovingAverage(20))
 		self.indicators.append(indicators.High())
 		self.indicators.append(indicators.Low())
 		self.indicators.append(indicators.Close())
 		training_data = self.createTrainingData(ticks)
+		clearIndicators(self.indicators)
 		targets = getTargets(training_data)
+		print(targets)
 		self.LR = linear_model.LogisticRegression()
 		self.LR.fit(training_data, targets)
 
@@ -100,14 +104,18 @@ class LogisticRegression(Strategy):
 		return [indicator[-1] for indicator in self.indicators]
 
 	def next(self):
-		features = self.getFeatures()
+		if(len(self.close) < self.setup_period): return
+
+		features = [self.getFeatures()]
+		signal = self.LR.predict(features)[0]
+		self.predictions.append(signal)
 		if not self.in_position:
-			if(self.LR.predict(features)):
+			if(signal):
 				self.buy()
 		else:
 			if(self.broker.loss >= self.broker.cash * self.config['stop_loss']):
 				self.sell()
-			elif(not self.LR.predict(features)):
+			elif(not signal):
 				self.sell()
 
 def getTarget(data, index):
@@ -117,3 +125,7 @@ def getTarget(data, index):
 
 def getTargets(data):
 	return [getTarget(data, index) for index, item in enumerate(data)]
+
+def clearIndicators(indicators):
+	for indicator in indicators:
+		indicator.clearData()
