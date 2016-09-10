@@ -20,10 +20,10 @@ pip install -e .
 You need to enter (and exit) the virtual environment for each work session:
 ```bash
 # Start
-pyvenv <env_name>/bin/activate
+source <env_name>/bin/activate
 
 # End
-pyvenv deactivate
+deactivate
 ```
 
 Running the server:
