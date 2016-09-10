@@ -1,6 +1,5 @@
 """Configures server."""
 
-from wsgiref.simple_server import make_server
 from metropolis.config import getConfig
 
 

@@ -1,8 +1,8 @@
 """Creates configuration for the server."""
 
 from pyramid.config import Configurator
-
 import metropolis.routes as routes
+
 
 def getConfig(settings):
     """Returns the server configuration."""

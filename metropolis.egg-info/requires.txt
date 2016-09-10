@@ -1,1 +1,9 @@
 pyramid
+numpy
+matplotlib
+TA-Lib
+pandas
+tables
+flake8
+flake8-docstrings
+hacker
