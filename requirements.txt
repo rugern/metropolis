@@ -1,9 +1,8 @@
-cycler==0.10.0
-flake8==2.5.5
+flake8==3.0.4
+flake8-docstrings==1.0.2
 hacking==0.11.0
-matplotlib==1.5.3
-mccabe==0.2.1
-Mercator==0.1
+mccabe==0.5.2
+-e git+git@github.com:rugern/mercator.git@9c4cb8328e8421e9062cb610b46aa361d48c6da3#egg=metropolis
 numexpr==2.6.1
 numpy==1.11.1
 pandas==0.18.1
@@ -11,8 +10,8 @@ PasteDeploy==1.5.2
 pbr==1.10.0
 pep8==1.5.7
 pycodestyle==2.0.0
-pyflakes==0.8.1
-pyparsing==2.1.9
+pydocstyle==1.0.0
+pyflakes==1.2.3
 pyramid==1.7.3
 python-dateutil==2.5.3
 pytz==2016.6.1

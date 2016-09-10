@@ -1,0 +1,6 @@
+metropolis.egg-info/PKG-INFO
+metropolis.egg-info/SOURCES.txt
+metropolis.egg-info/dependency_links.txt
+metropolis.egg-info/entry_points.txt
+metropolis.egg-info/requires.txt
+metropolis.egg-info/top_level.txt
