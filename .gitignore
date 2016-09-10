@@ -3,4 +3,4 @@
 *.h5
 dev/
 *.pyc
-.egg-info
+*.egg-info
