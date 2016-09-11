@@ -12,7 +12,7 @@ requirements = [
     'flake8',
     'flake8-docstrings',
     'hacker',
-    'Jinja2',
+    'pip-autoremove',
 ]
 
 setup(name='metropolis',
