@@ -1,8 +1,4 @@
-.tags*
+virtualenv
+
 .DS_Store
 *.h5
-dev/
-*.pyc
-*.egg-info
-node_modules/
-bundle.js
