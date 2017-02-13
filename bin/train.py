@@ -45,8 +45,8 @@ class ExperienceReplay(object):
             reward = self.rewards[randomInt]
             nextState = self.nextStates[randomInt].reshape(1, features)
             inputs[i] = state
-            targets[i] = model.predict(state)
-            futureReward = numpy.max(model.predict(nextState))
+            targets[i] = model.predict(state)[0]
+            futureReward = numpy.max(model.predict(nextState)[0])
             targets[i, action] = reward + self.discount * futureReward
         return inputs, targets
 
@@ -67,7 +67,6 @@ def getModel(features, inputName=None):
             model.load_weights(inputName)
         else:
             print("Sorry bro, could not find the weights file: {}".format(inputName))
-            sys.exit(1)
 
     return model
 
@@ -79,14 +78,19 @@ def save(model, outputName):
     with open(outputName + ".json", "w") as outfile:
         json.dump(model.to_json(), outfile)
 
-# TODO: La prediction bestemme størrelse på kjøp/salg
+# TODO: Test concatenation of features
+# TODO: Test LSTM
+# TODO: Test større nettverk (prøv gjerne å overfitte)
+# TODO: Transfer learning
 def run():
-    inputName = "model/testmodel"
-    outputName = "model/testmodel"
+    inputName = "model/testmodel2"
+    outputName = "model/testmodel2"
     threshold = 0.1
     loss = 0.
+    startMoney = 10000
 
-    data = pandas.read_hdf("data/krakenEUR_2016_07.hdf5").dropna()
+    # data = pandas.read_hdf("data/krakenEUR_2016_07.hdf5").dropna()
+    data = pandas.read_hdf("data/krakenEUR_2016_07_padded.hdf5")
     closePrices = data.iloc[:, 3].values
     normalized = (closePrices - closePrices.mean()) / (closePrices.max() - closePrices.min())
     indicators, longestPeriod = trading.createIndicators(normalized)
@@ -94,39 +98,53 @@ def run():
 
     model = getModel(features, inputName)
     experienceReplay = ExperienceReplay(features)
-    bank = Bank(10000)
+    bank = Bank(startMoney)
 
     state = None
     nextState = indicators[longestPeriod].reshape(1, features)
     action = None
+    quota = 0.
+    actionsPerformed = numpy.zeros(3) # SELL, HOLD, BUY
+
     print("Number of entries: {}".format(indicators.shape[0]))
 
     for i in range(longestPeriod, indicators.shape[0] - 1):
         if (i - longestPeriod) % 100 == 0:
             progress = 100 * (i - longestPeriod) / (indicators.shape[0] - longestPeriod)
             holdValue = (10000 / closePrices[longestPeriod]) * closePrices[i]
-            print("Progess: {:.2f}% | Value: ${:.2f} | Hold: ${:.2f}"
-                  .format(progress, bank.calculateValue(closePrices[i]), holdValue))
+            total = bank.calculateValue(closePrices[i])
+            print("".join(["Progess: {:.2f}% | Price: ${:.2f} | Funds: ${:.2f} | ",
+                  "Bound: ${:.2f} | Total: ${:.2f}| Hold: ${:.2f}"])
+                  .format(progress, closePrices[i], bank.funds, total - bank.funds, total, holdValue))
 
         state = nextState
         nextState = indicators[i + 1].reshape((1, features))
 
         if random.random() <= threshold:
+            quota = random.random()
             action = random.randint(0, 3, size=1)
         else:
-            prediction = model.predict(state)
+            prediction = model.predict(state)[0]
             action = numpy.argmax(prediction)
+            quota = prediction[action]
 
-        reward = bank.performAction(closePrices[i], closePrices[i + 1], action)
+        actionsPerformed[action] += 1
+        reward = bank.performAction(closePrices[i], closePrices[i + 1], action, quota)
         experienceReplay.remember(state, action, reward, nextState)
         inputs, targets = experienceReplay.getBatch(model)
         loss += model.train_on_batch(inputs, targets)
 
-    total = bank.calculateValue(closePrices[-1])
     holdValue = (10000 / closePrices[longestPeriod]) * closePrices[-1]
+    total = bank.calculateValue(closePrices[-1])
+    bound = total - bank.funds
+    profit = 100 * (total - startMoney) / startMoney
+    relativeProfit = 100 * (total - holdValue) / holdValue
     print("Loss: {:.4f}".format(loss))
-    print("Funds: ${:.2f} | Bound: ${:.2f} | Total: ${:.2f} | Hold: ${:.2f}"
-          .format(bank.funds, total - bank.funds, total, holdValue))
+    print("".join(["Funds: ${:.2f} | Bound: ${:.2f} | Total: ${:.2f} | Hold: ${:.2f} | ",
+          "Relative profit: {:.2f}% | Profit: {:.2f}%"])
+          .format(bank.funds, bound, total, holdValue, relativeProfit, profit))
+    print("Buys: {} | Holds: {} | Sells: {}"
+          .format(actionsPerformed[2], actionsPerformed[1], actionsPerformed[0]))
     save(model, outputName)
 
 if __name__ == "__main__":

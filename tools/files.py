@@ -7,8 +7,11 @@ import datetime
 def dateparse(timestamp):    
     return datetime.datetime.fromtimestamp(float(timestamp))
 
-def sample(data):
-    return data.resample("10min").ohlc()
+def sample(data, interval, pad=False):
+    if pad:
+        result = data.resample(interval).ohlc()
+        return result.fillna(method="pad")
+    return data.resample(interval).ohlc()
 
 def readCsv(infile):
     return pandas.read_csv(infile, usecols=[0, 1], header=None, names=["DateTime", "Buy"], index_col=0, parse_dates=True, date_parser=dateparse)
@@ -31,7 +34,8 @@ if __name__ == "__main__":
         sys.exit(1)
 
     if os.path.isfile(outputName):
-        answer = input("The file '{}' already exists. Are you sure you want to overwrite (y/n)?")
+        answer = input("".join(["The file '{}' already exists. Are you sure you want to ",
+                       "overwrite (y/n)?"]).format(outputName))
         if answer != "y":
             print("No changes made")
             sys.exit(0)
@@ -43,7 +47,7 @@ if __name__ == "__main__":
     filtered = raw.ix["2016-07-01":"2016-07-31"]
 
     print("Sampling data")
-    sampled = sample(filtered)
+    sampled = sample(filtered, "10 min", True)
 
     print("Writing to HDF5")
     writeData(outputName, sampled)
