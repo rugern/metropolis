@@ -90,7 +90,7 @@ def run():
     startMoney = 10000
 
     # data = pandas.read_hdf("data/krakenEUR_2016_07.hdf5").dropna()
-    data = pandas.read_hdf("data/krakenEUR_2016_07_padded.hdf5")
+    data = pandas.read_hdf("data/EUR_USD_2017/EUR_USD_2017_01.hdf5")
     closePrices = data.iloc[:, 3].values
     normalized = (closePrices - closePrices.mean()) / (closePrices.max() - closePrices.min())
     indicators, longestPeriod = trading.createIndicators(normalized)
@@ -113,7 +113,7 @@ def run():
             progress = 100 * (i - longestPeriod) / (indicators.shape[0] - longestPeriod)
             holdValue = (10000 / closePrices[longestPeriod]) * closePrices[i]
             total = bank.calculateValue(closePrices[i])
-            print("".join(["Progess: {:.2f}% | Price: ${:.2f} | Funds: ${:.2f} | ",
+            print("".join(["Progess: {:.2f}% | Price: ${:.5f} | Funds: ${:.2f} | ",
                   "Bound: ${:.2f} | Total: ${:.2f}| Hold: ${:.2f}"])
                   .format(progress, closePrices[i], bank.funds, total - bank.funds, total, holdValue))
 
