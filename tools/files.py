@@ -14,8 +14,8 @@ def sample(data, interval, pad=False):
     return data.resample(interval).ohlc()
 
 def readCsv(infile):
-    # return pandas.read_csv(infile, usecols=[0, 1], header=None, names=["DateTime", "Buy"], index_col=0, parse_dates=True, date_parser=dateparse)
-    return pandas.read_csv(infile, usecols=[3, 4], header=0, names=["DateTime", "Buy"], index_col=0, parse_dates=True)
+    return pandas.read_csv(infile, usecols=[0, 1], header=None, names=["DateTime", "Buy"], index_col=0, parse_dates=True, date_parser=dateparse)
+    # return pandas.read_csv(infile, usecols=[3, 4], header=0, names=["DateTime", "Buy"], index_col=0, parse_dates=True)
 
 def readHdf(infile):
     return pandas.read_hdf(infile, key="bitcoin")
@@ -24,14 +24,18 @@ def writeData(outfile, data):
     data.to_hdf(outfile, key="bitcoin")
 
 if __name__ == "__main__":
+    # inputNames = [
+        # "data/EUR_USD_2017/EUR_USD_Week1.csv",
+        # "data/EUR_USD_2017/EUR_USD_Week2.csv",
+        # "data/EUR_USD_2017/EUR_USD_Week3.csv",
+        # "data/EUR_USD_2017/EUR_USD_Week4.csv",
+        # "data/EUR_USD_2017/EUR_USD_Week5.csv",
+    # ]
     inputNames = [
-        "data/EUR_USD_2017/EUR_USD_Week1.csv",
-        "data/EUR_USD_2017/EUR_USD_Week2.csv",
-        "data/EUR_USD_2017/EUR_USD_Week3.csv",
-        "data/EUR_USD_2017/EUR_USD_Week4.csv",
-        "data/EUR_USD_2017/EUR_USD_Week5.csv",
+        "data/EUR_BITCOIN_2016/krakenEUR.csv",
     ]
-    outputName = "data/EUR_USD_2017/EUR_USD_2017_01.hdf5"
+    outputName = "data/EUR_BITCOIN_2016/krakenEUR_padded.hdf5"
+
     for inputName in inputNames:
         if not os.path.isfile(inputName):
             print("Could not find datafile: {}".format(inputName))
