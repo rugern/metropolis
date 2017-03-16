@@ -13,21 +13,31 @@ class Bank(object):
         else: # actions.HOLD
             return 0.0
 
-    def buy(self, price, nextPrice, quota):
+    # def buy(self, price, nextPrice, quota):
+        # amount = self.funds * quota
+        # self.funds -= amount
+        # self.bound += amount / price
+        # currentValue = self.bound * price
+        # nextValue = self.bound * nextPrice
+        # return nextValue - currentValue
+
+    # def sell(self, price, nextPrice, quota):
+        # amount = self.bound * quota
+        # self.bound -= amount
+        # self.funds += amount * price
+        # currentValue = self.bound * price
+        # nextValue = self.bound * nextPrice
+        # return nextValue - currentValue
+
+    def buy(self, price, quota):
         amount = self.funds * quota
         self.funds -= amount
         self.bound += amount / price
-        currentValue = self.bound * price
-        nextValue = self.bound * nextPrice
-        return nextValue - currentValue
 
-    def sell(self, price, nextPrice, quota):
+    def sell(self, price, quota):
         amount = self.bound * quota
         self.bound -= amount
         self.funds += amount * price
-        currentValue = self.bound * price
-        nextValue = self.bound * nextPrice
-        return nextValue - currentValue
 
     def calculateValue(self, price):
         return self.funds + self.bound * price

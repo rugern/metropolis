@@ -1,14 +1,16 @@
+appdirs==1.4.3
 appnope==0.1.0
 cycler==0.10.0
 decorator==4.0.11
 h5py==2.6.0
 ipython==5.2.2
 ipython-genutils==0.1.0
-Keras==1.2.2
+Keras==2.0.0
 line-profiler==2.0
 matplotlib==2.0.0
 numexpr==2.6.2
 numpy==1.12.0
+packaging==16.8
 pandas==0.19.2
 pexpect==4.2.1
 pickleshare==0.7.4
@@ -16,7 +18,7 @@ prompt-toolkit==1.0.13
 protobuf==3.2.0
 ptyprocess==0.5.1
 Pygments==2.2.0
-pyparsing==2.1.10
+pyparsing==2.2.0
 python-dateutil==2.6.0
 pytz==2016.10
 PyYAML==3.12
@@ -25,7 +27,7 @@ simplegeneric==0.8.1
 six==1.10.0
 TA-Lib==0.4.10
 tables==3.3.0
-tensorflow==0.12.1
+tensorflow==1.0.0
 Theano==0.8.2
 traitlets==4.3.1
 wcwidth==0.1.7
