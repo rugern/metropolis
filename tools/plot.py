@@ -10,7 +10,9 @@ def assertExists(name):
 
 def readHdf(name):
     infile = h5py.File(name, "r")
-    data = infile["data"][:][:, 3]
+    data = infile["data"][:]
+    if len(data.shape) > 1:
+        data = data[:, 3]
     infile.close()
     return data
 

@@ -11,7 +11,11 @@ from keras.layers import Input, Dense, LSTM, Embedding
 from keras.models import Model
 from keras.optimizers import sgd
 from bank import Bank
+import trading
+from matplotlib import pyplot
 
+sampleScaler = MinMaxScaler(feature_range=(0, 1))
+labelScaler = MinMaxScaler(feature_range=(0, 1))
 
 def save(model, outputName):
     if outputName is None:
@@ -38,15 +42,17 @@ def saveToHdf(data, name):
     output.create_dataset("data", data=data)
     output.close()
 
-def createData(raw, scaler, lookback=2):
+def createData(raw, lookback=4):
     # closePrices = data.iloc[:, 3].values
     # normalized = (closePrices - closePrices.mean()) / (closePrices.max() - closePrices.min())
     # indicators, longestPeriod = trading.createIndicators(normalized)
 
-    normalized = scaler.fit_transform(raw.values)
-    samples = normalized[:-1]
-    labels = normalized[1:]
+    data, longestPeriod = trading.createIndicators(raw.values)
+    data = data[longestPeriod:]
+    offset = -3
+    samples = sampleScaler.fit_transform(data[:offset-1])
     samples = samples.reshape((-1, lookback, samples.shape[1]))
+    labels = labelScaler.fit_transform(data[1:offset, 3])
     labels = labels[lookback - 1::lookback]
     return samples, labels
 
@@ -63,7 +69,7 @@ def getModel(data, inputName=None):
     x = LSTM(data.shape[2])(inputs)
     x = Dense(hiddenSize, activation="relu")(x)
     # x = Dense(hiddenSize, activation="relu")(x)
-    predictions = Dense(data.shape[2], activation="sigmoid")(x)
+    predictions = Dense(1, activation="sigmoid")(x)
     model = Model(inputs=inputs, outputs=predictions)
     model.compile(sgd(lr=0.2), "mse")
 
@@ -91,11 +97,11 @@ def train(model, data, labels):
 def test(model, data):
     printIntervals = 10
     modulo = data.shape[0] // printIntervals
-    predictions = model.predict(data[0].reshape(1, data.shape[1], data.shape[2])).reshape(1, -1)
+    predictions = numpy.zeros((data.shape[0]))
+    print(predictions.shape)
     print("Creating predictions...")
-    for i in range(1, data.shape[0]):
-        prediction = model.predict(data[i].reshape(1, data.shape[1], data.shape[2]))
-        predictions = numpy.append(predictions, prediction, axis=0)
+    for i in range(0, data.shape[0]):
+        predictions[i] = model.predict(data[i].reshape(1, data.shape[1], data.shape[2]))
         if i % modulo == 0:
             print("Progress: {}/{}".format(i, data.shape[0]))
     return predictions
@@ -151,22 +157,22 @@ def marketTest(model, data, raw):
           .format(buys, holds, sells))
 
 if __name__ == "__main__":
-    inputName = "model/testmodel"
-    outputName = "model/testmodel"
+    inputName = "model/testmodel2"
+    outputName = "model/testmodel2"
 
-    scaler = MinMaxScaler(feature_range=(0, 1))
     raw = pandas.read_hdf("data/EUR_BITCOIN_2016/krakenEUR_2016_padded.hdf5")
-    samples, labels = createData(raw, scaler)
+    samples, labels = createData(raw)
     ratio = len(samples) * 75 // 100
-    training_data = samples[:ratio]
-    training_labels = labels[:ratio]
+    trainingData = samples[:ratio]
+    trainingLabels = labels[:ratio]
+
     testData = samples[ratio:]
     testLabels = labels[ratio:]
 
     model = getModel(samples, inputName)
-    # train(model, training_data, training_labels)
-    # save(model, outputName)
+    train(model, trainingData, trainingLabels)
+    save(model, outputName)
 
     predictions = test(model, testData)
-    saveToHdf(scaler.inverse_transform(predictions), "predictions.h5")
-    saveToHdf(scaler.inverse_transform(testLabels), "labels.h5")
+    saveToHdf(predictions, "predictions2.h5")
+    saveToHdf(testLabels, "labels2.h5")
