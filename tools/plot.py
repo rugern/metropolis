@@ -16,20 +16,15 @@ def readHdf(name):
     infile.close()
     return data
 
-def plotSingle(args):
-    name = args[1]
-    data = readHdf(name)
-    pyplot.plot(data)
-    pyplot.show()
+def plotN(args):
+    name = args[1:]
+    for i in range(len(name)):
+        assertExists(name[i])
 
-def plotDouble(args):
-    first, second = args[1:]
-    assertExists(first)
-    assertExists(second)
-    firstData = readHdf(first)
-    secondData = readHdf(second)
-    firstPlot = pyplot.plot(firstData, label=first)
-    secondPlot = pyplot.plot(secondData, label=second)
+    for i in range(len(name)):
+        data = readHdf(name[i])
+        pyplot.plot(data, label=name[i])
+
     pyplot.legend()
     pyplot.show()
 
@@ -37,9 +32,5 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Datafile required")
         sys.exit(1)
-    elif len(sys.argv) == 2:
-        plotSingle(sys.argv)
-    elif len(sys.argv) == 3:
-        plotDouble(sys.argv)
-    else:
-        print("Does not support so many arguments")
+
+    plotN(sys.argv)
