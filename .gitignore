@@ -1,4 +1,4 @@
-virtualenv
+venv
 
 .DS_Store
 *.csv
