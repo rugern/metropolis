@@ -41,11 +41,11 @@ def getModel(data, inputName=None):
     return model
 
 def saveToHdf(data, name):
-    output = h5py.File("results/" + name, "w")
+    output = h5py.File(name, "w")
     output.create_dataset("data", data=data)
     output.close()
 
-def createData(raw, lookback=4):
+def createData(raw, lookback=5):
     sampleScaler = MinMaxScaler(feature_range=(0, 1))
     labelScaler = MinMaxScaler(feature_range=(0, 1))
     # closePrices = data.iloc[:, 3].values
@@ -54,19 +54,11 @@ def createData(raw, lookback=4):
 
     data, longestPeriod = trading.createIndicators(raw.values)
     data = data[longestPeriod:]
-    correction = -4
-    offset = 5 # number of timesteps to predict ahead
+    correction = -8
 
-    # utility.saveToHdf(data[:correction-1, 3], "close.h5")
-    # utility.saveToHdf(data[:correction-1, 4], "ema.h5")
-    # utility.saveToHdf(data[:correction-1, 5], "rsi.h5")
-    # utility.saveToHdf(data[:correction-1, 6], "upperband.h5")
-    # utility.saveToHdf(data[:correction-1, 7], "middleband.h5")
-    # utility.saveToHdf(data[:correction-1, 8], "lowerband.h5")
-
-    samples = sampleScaler.fit_transform(data[:correction-offset])
+    samples = sampleScaler.fit_transform(data[:correction-lookback])
     samples = samples.reshape((-1, lookback, samples.shape[1]))
-    labels = labelScaler.fit_transform(data[offset:correction, 4])
+    labels = labelScaler.fit_transform(data[lookback+1:correction, 4])
     labels = labels[lookback - 1::lookback]
 
     ratio = len(samples) * 75 // 100
@@ -74,5 +66,15 @@ def createData(raw, lookback=4):
     trainingLabels = labels[:ratio]
     testData = samples[ratio:]
     testLabels = labels[ratio:]
+
+    # utility.saveToHdf(data[ratio+lookback+1:correction, 0], "indicators/open.h5")
+    # utility.saveToHdf(data[ratio+lookback+1:correction, 1], "indicators/high.h5")
+    # utility.saveToHdf(data[ratio+lookback+1:correction, 2], "indicators/low.h5")
+    # utility.saveToHdf(data[ratio+lookback+1:correction, 3], "indicators/close.h5")
+    # utility.saveToHdf(data[ratio+lookback+1:correction, 4], "indicators/ema.h5")
+    # utility.saveToHdf(data[ratio+lookback+1:correction, 5], "indicators/rsi.h5")
+    # utility.saveToHdf(data[ratio+lookback+1:correction, 6], "indicators/upperband.h5")
+    # utility.saveToHdf(data[ratio+lookback+1:correction, 7], "indicators/middleband.h5")
+    # utility.saveToHdf(data[ratio+lookback+1:correction, 8], "indicators/lowerband.h5")
 
     return trainingData, trainingLabels, testData, testLabels

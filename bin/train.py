@@ -39,7 +39,7 @@ def findAction(estimate, price):
 # TODO: Test større nettverk (prøv gjerne å overfitte)
 # TODO: Transfer learning
 def train(model, data, labels):
-    model.fit(data, labels, epochs=1, batch_size=32)
+    model.fit(data, labels, epochs=10, batch_size=32)
 
 def marketTest(model, data, raw):
     startMoney = 10000
@@ -92,11 +92,12 @@ def marketTest(model, data, raw):
           .format(buys, holds, sells))
 
 if __name__ == "__main__":
-    number = 7
+    number = 1
     inputName = "model/testmodel{}".format(number)
     outputName = "model/testmodel{}".format(number)
 
-    raw = pandas.read_hdf("data/EUR_BITCOIN_2016/krakenEUR_2016_padded.hdf5")
+    raw = pandas.read_hdf("data/EUR_USD_2017/EUR_USD_2017_01.hdf5")
+    # raw = pandas.read_hdf("data/EUR_BITCOIN_2016/krakenEUR_2016_padded.hdf5")
     trainingData, trainingLabels, testData, testLabels = utility.createData(raw, 10)
 
     model = utility.getModel(trainingData, inputName)

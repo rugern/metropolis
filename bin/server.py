@@ -57,20 +57,40 @@ def getDirectoryList(path):
 def connected():
     print("Client connected")
 
+@socket.on("toggle_prediction")
 @socket.on("get_predictions")
 def emitPlot(options):
     names = getDirectoryList("predictions/")
+    keys = options["keys"] if "keys" in options else names
+    includeData = options["data"] if "data" in options else False
+
     predictions = {}
-    for name in names:
-        predictions[name] = {}
+    for key in keys:
+        if key not in names:
+            continue
+        predictions[key] = {}
+        if includeData:
+            predictions[key]["data"] = readHdf("predictions/{}".format(key)).tolist()
+            predictions[key]["labels"] = list(range(0, len(predictions[key]["data"])))
+
     emit("set_predictions", predictions)
 
+@socket.on("toggle_indicator")
 @socket.on("get_indicators")
 def emitPlot(options):
     names = getDirectoryList("indicators/")
+    keys = options["keys"] if "keys" in options else names
+    includeData = options["data"] if "data" in options else False
+
     indicators = {}
-    for name in names:
-        indicators[name] = {}
+    for key in keys:
+        if key not in names:
+            continue
+        indicators[key] = {}
+        if includeData:
+            indicators[key]["data"] = readHdf("indicators/{}".format(key)).tolist()
+            indicators[key]["labels"] = list(range(0, len(indicators[key]["data"])))
+
     emit("set_indicators", indicators)
 
 if __name__ == "__main__":
