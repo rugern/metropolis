@@ -57,14 +57,21 @@ def getDirectoryList(path):
 def connected():
     print("Client connected")
 
-@socket.on("plots")
-def emitPlot():
-    emit("plots", getDirectoryList("results/"))
+@socket.on("get_predictions")
+def emitPlot(options):
+    names = getDirectoryList("predictions/")
+    predictions = {}
+    for name in names:
+        predictions[name] = {}
+    emit("set_predictions", predictions)
 
-@socket.on("plot")
-def emitPlotData(data):
-    print(data)
-    emit("plot", readHdf("results/{}".format(data)).tolist())
+@socket.on("get_indicators")
+def emitPlot(options):
+    names = getDirectoryList("indicators/")
+    indicators = {}
+    for name in names:
+        indicators[name] = {}
+    emit("set_indicators", indicators)
 
 if __name__ == "__main__":
     socket.run(app)
