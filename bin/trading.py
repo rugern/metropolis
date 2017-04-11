@@ -2,7 +2,7 @@ import numpy
 import talib
 
 
-def createIndicators(prices):
+def createIndicators(prices, datetimes):
     # openPrice, highPrice, lowPrice, closePrice = prices[:]
     openPrice = prices[:, 0]
     highPrice = prices[:, 1]
@@ -30,7 +30,7 @@ def createIndicators(prices):
         if not numpy.isnan(row).any():
             break
 
-    return values[index:]
+    return values[index:], datetimes[index:]
 
 
 

@@ -40,8 +40,8 @@ def getModel(data, inputName=None):
 
     return model
 
-def saveToHdf(data, name):
-    output = h5py.File(name, "w")
+def saveToHdf(filename, data):
+    output = h5py.File(filename, "w")
     output.create_dataset("data", data=data)
     output.close()
 
@@ -49,72 +49,80 @@ def scaleMatrix(values):
     scaler = MinMaxScaler(feature_range=(0, 1))
     return scaler.fit_transform(values)
 
-def splitTrainAndTest(values, ratio=0.7):
-    trainLength = round(len(values) / ratio)
-    train = values[:values]
-    test = values[values:]
-    return train, test
+def splitTrainAndTest(values, datetimes, ratio=0.7):
+    trainLength = round(len(values) * ratio)
+    train = values[:trainLength]
+    trainDt = datetimes[:trainLength]
+    test = values[trainLength:]
+    testDt = datetimes[trainLength:]
+    return train, test, trainDt, testDt
+
+def takeEvery(values, startOffset, interval):
+    return values[interval-startOffset::interval]
+
+def splice(values, start, end):
+    return values[start:end] if end != 0 else values[start:]
+
+def createDataAndLabels(values, datetimes, lookback, save=False):
+    # 1. Fiks correction (også datetime). Ta høyde for at data og labels len er -1
+    correction = (len(values) - 1) % lookback
+    data = splice(values, 0, -1-correction)
+    labels = splice(values, 1, -correction)[:, 3]
+    labelDt = splice(datetimes, 1, -correction)
+
+    # 2. createData: reshape data
+    data = data.reshape((-1, lookback, data.shape[1]))
+
+    # 3. createLabels: Hopp over tilsvarende reshape
+    labels = takeEvery(labels, 1, lookback)
+    labelDt = takeEvery(labelDt, 1, lookback)
+
+    # 1. assert(len(labels) == len(indicators) == len(datetime)) for test
+    assert(len(labels) == len(data) == len(labelDt))
+
+    # 2. Lagre test-labels og -indicators (inkl ohlc) sammen med test-datetime
+    if save:
+        comparisonData = splice(values, 1, -correction)
+        comparisonData = takeEvery(comparisonData, 1, lookback)
+        # h5py doesnt support utf-8, so store as ascii
+        stringLabelDt = numpy.array(labelDt, dtype=numpy.dtype("S48"))
+
+        # 4. assert(len(data) == len(labels)) for test og train
+        assert(comparisonData.shape[1] > 9)
+        assert(len(comparisonData) == len(labels) == len(stringLabelDt))
+
+        saveToHdf("labels/datetimes.h5", stringLabelDt)
+        saveToHdf("indicators/open.h5", comparisonData[:, 0])
+        saveToHdf("indicators/high.h5", comparisonData[:, 1])
+        saveToHdf("indicators/low.h5", comparisonData[:, 2])
+        saveToHdf("indicators/close.h5", comparisonData[:, 3])
+        saveToHdf("indicators/ema.h5", comparisonData[:, 4])
+        saveToHdf("indicators/rsi.h5", comparisonData[:, 5])
+        saveToHdf("indicators/upperband.h5", comparisonData[:, 6])
+        saveToHdf("indicators/middleband.h5", comparisonData[:, 7])
+        saveToHdf("indicators/lowerband.h5", comparisonData[:, 8])
+
+    # 5. returner data og labels
+    return data, labels, labelDt
 
 
 def createData(raw, lookback=5):
     # 1. Dra ut datetime og values
-    datetime = raw.index.values
+    datetimes = raw.index.values
     values = raw.values
 
     # 3. Lag indikatordata, fjern NaN
-    values = trading.createIndicators(values)
+    values, datetimes = trading.createIndicators(values, datetimes)
 
     # 2. normaliser values
     values = scaleMatrix(values)
 
     # 4. splitTrainAndTest
-    train, test = splitTrainAndTest(values)
+    train, test, trainDt, testDt = splitTrainAndTest(values, datetimes)
 
     # 5. For hver av train og test:
-    trainData, trainLabels = createDataAndLabels(train)
-        # 1. FIks correction (også datetime). Ta høyde for at data og labels len er -1
-        # 2. createData: reshape data
-        # 3. createLabels: Hopp over tilsvarende reshape
-            # 1. assert(len(labels) == len(indicators) == len(datetime)) for test
-            # 2. Lagre test-labels og -indicators (inkl ohlc) sammen med test-datetime
-        # 4. assert(len(data) == len(labels)) for test og train
-        # 5. returner data og labels
+    trainData, trainLabels, trainLabelDt = createDataAndLabels(train, trainDt, lookback)
+    testData, testLabels, testLabelDt = createDataAndLabels(test, testDt, lookback, True)
+
     # 6. returner train og test, med data og labels
-
-def oldCreateData(raw, lookback=5):
-    sampleScaler = MinMaxScaler(feature_range=(0, 1))
-    labelScaler = MinMaxScaler(feature_range=(0, 1))
-    # closePrices = data.iloc[:, 3].values
-    # normalized = (closePrices - closePrices.mean()) / (closePrices.max() - closePrices.min())
-    # indicators, longestPeriod = trading.createIndicators(normalized)
-
-    data, longestPeriod = trading.createIndicators(raw.values)
-    data = data[longestPeriod:]
-    correction = -8
-
-    samples = sampleScaler.fit_transform(data[:correction-lookback])
-    samples = samples.reshape((-1, lookback, samples.shape[1]))
-    labels = labelScaler.fit_transform(data[lookback+1:correction, 4])
-    labels = labels[lookback - 1::lookback]
-
-    ratio = len(samples) * 75 // 100
-    trainingData = samples[:ratio]
-    trainingLabels = labels[:ratio]
-    testData = samples[ratio:]
-    testLabels = labels[ratio:]
-
-    # utility.saveToHdf(data[ratio+lookback+1:correction, 0], "indicators/open.h5")
-    # utility.saveToHdf(data[ratio+lookback+1:correction, 1], "indicators/high.h5")
-    # utility.saveToHdf(data[ratio+lookback+1:correction, 2], "indicators/low.h5")
-    # utility.saveToHdf(data[ratio+lookback+1:correction, 3], "indicators/close.h5")
-    # utility.saveToHdf(data[ratio+lookback+1:correction, 4], "indicators/ema.h5")
-    # utility.saveToHdf(data[ratio+lookback+1:correction, 5], "indicators/rsi.h5")
-    # utility.saveToHdf(data[ratio+lookback+1:correction, 6], "indicators/upperband.h5")
-    # utility.saveToHdf(data[ratio+lookback+1:correction, 7], "indicators/middleband.h5")
-    # utility.saveToHdf(data[ratio+lookback+1:correction, 8], "indicators/lowerband.h5")
-
-    return trainingData, trainingLabels, testData, testLabels
-
-if __name__ == "__main__":
-    raw = pandas.read_hdf("data/EUR_USD_2017/EUR_USD_2017_01.hdf5")
-    createData(raw)
+    return trainData, trainLabels, testData, testLabels, testDt
