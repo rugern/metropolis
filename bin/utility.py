@@ -45,7 +45,43 @@ def saveToHdf(data, name):
     output.create_dataset("data", data=data)
     output.close()
 
+def scaleMatrix(values):
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    return scaler.fit_transform(values)
+
+def splitTrainAndTest(values, ratio=0.7):
+    trainLength = round(len(values) / ratio)
+    train = values[:values]
+    test = values[values:]
+    return train, test
+
+
 def createData(raw, lookback=5):
+    # 1. Dra ut datetime og values
+    datetime = raw.index.values
+    values = raw.values
+
+    # 3. Lag indikatordata, fjern NaN
+    values = trading.createIndicators(values)
+
+    # 2. normaliser values
+    values = scaleMatrix(values)
+
+    # 4. splitTrainAndTest
+    train, test = splitTrainAndTest(values)
+
+    # 5. For hver av train og test:
+    trainData, trainLabels = createDataAndLabels(train)
+        # 1. FIks correction (også datetime). Ta høyde for at data og labels len er -1
+        # 2. createData: reshape data
+        # 3. createLabels: Hopp over tilsvarende reshape
+            # 1. assert(len(labels) == len(indicators) == len(datetime)) for test
+            # 2. Lagre test-labels og -indicators (inkl ohlc) sammen med test-datetime
+        # 4. assert(len(data) == len(labels)) for test og train
+        # 5. returner data og labels
+    # 6. returner train og test, med data og labels
+
+def oldCreateData(raw, lookback=5):
     sampleScaler = MinMaxScaler(feature_range=(0, 1))
     labelScaler = MinMaxScaler(feature_range=(0, 1))
     # closePrices = data.iloc[:, 3].values
@@ -78,3 +114,7 @@ def createData(raw, lookback=5):
     # utility.saveToHdf(data[ratio+lookback+1:correction, 8], "indicators/lowerband.h5")
 
     return trainingData, trainingLabels, testData, testLabels
+
+if __name__ == "__main__":
+    raw = pandas.read_hdf("data/EUR_USD_2017/EUR_USD_2017_01.hdf5")
+    createData(raw)
