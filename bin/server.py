@@ -15,6 +15,7 @@ socket = SocketIO(app)
 status = "Idle"
 name = "1"
 dataFile = "data/EUR_USD_2017/EUR_USD_2017_01.hdf5"
+epochs = 1
 
 def calculateDatetimeRange(start, end, dt):
     offset = dt.index(min(dt, key=lambda x: abs(x - start)))
@@ -37,9 +38,12 @@ def setStatus(newStatus):
 @socket.on("get_data")
 def emitData(options):
     datetimes = numpy.array(readHdf("labels/datetimes.h5"), dtype="datetime64[m]").tolist()
-    endTime = options["endTime"] if "endTime" in options else datetimes[-1]
-    startTime = options["startTime"] if "startTime" in options else datetimes[-min(len(datetimes), 1000)]
-    offset, limit = calculateDatetimeRange(startTime, endTime, datetimes)
+    # endTime = options["endTime"] if "endTime" in options else datetimes[-1]
+    # startTime = options["startTime"] if "startTime" in options else datetimes[-min(len(datetimes), 1000)]
+    limit = options["limit"] if "limit" in options else 200
+    offset = options["offset"] if "offset" in options else len(datetimes) - limit
+    offset = max(0, offset)
+    limit = min(len(datetimes) - offset, limit)
     labels = numpy.array(datetimes, dtype=numpy.dtype("str")).tolist()[offset:offset+limit]
 
     data = {}
@@ -61,7 +65,7 @@ def train():
     model = utility.getModel(trainData, "model/testmodel{}.h5".format(name))
 
     setStatus("Training")
-    model.fit(trainData, trainLabels, epochs=1, batch_size=32)
+    model.fit(trainData, trainLabels, epochs=epochs, batch_size=32)
     utility.saveModel(model, "model/testmodel{}.h5".format(name))
 
     setStatus("Creating predictions")
@@ -77,6 +81,11 @@ def train():
 def setModelName(newName):
     global name
     name = newName
+
+@socket.on("set_epochs")
+def setEpochs(newValue):
+    global epochs
+    epochs = newValue
 
 if __name__ == "__main__":
     socket.run(app)
