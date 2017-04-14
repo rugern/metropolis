@@ -1,98 +1,82 @@
-import h5py
-import json
-import time
-from os import listdir
-from os.path import isfile, join
-from flask import Flask, jsonify, request
-from flask_cors import CORS, cross_origin
-from flask_socketio import SocketIO, emit
+import numpy
+import pandas
 import eventlet
+from flask import Flask
+from flask_socketio import SocketIO, emit
 
-eventlet.monkey_patch()
+import utility
+from utility import readHdf, getDirectoryList
+from predictions import createPredictions
+
+# eventlet.monkey_patch()
 app = Flask(__name__)
-# CORS(app)
 socket = SocketIO(app)
 
-successResponse = {
-    "success": True,
-    "text": "The operation was successful",
-    "statusCode": 200
-}
+status = "Idle"
+name = "1"
+dataFile = "data/EUR_USD_2017/EUR_USD_2017_01.hdf5"
 
-def readHdf(name):
-    infile = h5py.File(name, "r")
-    data = infile["data"][:]
-    if len(data.shape) > 1:
-        data = data[:, 3]
-    infile.close()
+def calculateDatetimeRange(start, end, dt):
+    offset = dt.index(min(dt, key=lambda x: abs(x - start)))
+    limit = dt.index(min(dt, key=lambda x: abs(x - end))) - offset
+    return offset, limit
+
+def getData(dataType, offset, limit):
+    data = {}
+    names = getDirectoryList("{}/".format(dataType))
+    for name in names:
+        data[name] = {}
+        data[name]["data"] = readHdf("{}/{}".format(dataType, name)).tolist()[offset:offset+limit]
     return data
 
-def readJson(path):
-    data = None
-    with open(path, "r") as infile:
-        data = json.load(infile)
-    return data
+def setStatus(newStatus):
+    global status
+    status = newStatus
+    emitStatus()
 
-def writeJson(path, data):
-    with open(path, "w") as outfile:
-        json.dump(data, outfile)
+@socket.on("get_data")
+def emitData(options):
+    datetimes = numpy.array(readHdf("labels/datetimes.h5"), dtype="datetime64[m]").tolist()
+    endTime = options["endTime"] if "endTime" in options else datetimes[-1]
+    startTime = options["startTime"] if "startTime" in options else datetimes[-min(len(datetimes), 1000)]
+    offset, limit = calculateDatetimeRange(startTime, endTime, datetimes)
+    labels = numpy.array(datetimes, dtype=numpy.dtype("str")).tolist()[offset:offset+limit]
 
-def getDirectoryList(path):
-    filenames = [name for name in listdir(path) if isfile(join(path, name))]
-    return filenames
+    data = {}
+    data["labels"] = labels
+    data["indicators"] = getData("indicators", offset, limit)
+    data["predictions"] = getData("predictions", offset, limit)
 
-# @app.route("/run", methods=["POST"])
-# def run():
-    # return jsonify(successResponse)
+    emit("set_data", data)
 
-# @app.route("/results", methods=["GET"])
-# def getResults():
-    # if "name" in request.args:
-        # result = readHdf("results/{}".format(request.args["name"])).tolist()
-        # return jsonify(result)
-    # resultNames = getDirectoryList("results/")
-    # return jsonify(resultNames)
+@socket.on("get_metropolis_status")
+def emitStatus():
+    emit("set_metropolis_status", status)
 
-@socket.on("connect")
-def connected():
-    print("Client connected")
+@socket.on("start_train")
+def train():
+    setStatus("Initializing training")
+    raw = pandas.read_hdf(dataFile)
+    trainData, trainLabels, testData, testLabels, testLabelDt = utility.createData(raw, 5)
+    model = utility.getModel(trainData, "model/testmodel{}.h5".format(name))
 
-@socket.on("toggle_prediction")
-@socket.on("get_predictions")
-def emitPlot(options):
-    names = getDirectoryList("predictions/")
-    keys = options["keys"] if "keys" in options else names
-    includeData = options["data"] if "data" in options else False
+    setStatus("Training")
+    model.fit(trainData, trainLabels, epochs=1, batch_size=32)
+    utility.saveModel(model, "model/testmodel{}.h5".format(name))
 
-    predictions = {}
-    for key in keys:
-        if key not in names:
-            continue
-        predictions[key] = {}
-        if includeData:
-            predictions[key]["data"] = readHdf("predictions/{}".format(key)).tolist()
-            predictions[key]["labels"] = list(range(0, len(predictions[key]["data"])))
+    setStatus("Creating predictions")
+    predictions = createPredictions(model, testData)
 
-    emit("set_predictions", predictions)
+    assert len(predictions) == len(testLabels) == len(testLabelDt)
+    utility.saveToHdf("predictions/predictions{}.h5".format(name), predictions)
+    utility.saveToHdf("predictions/labels{}.h5".format(name), testLabels)
 
-@socket.on("toggle_indicator")
-@socket.on("get_indicators")
-def emitPlot(options):
-    names = getDirectoryList("indicators/")
-    keys = options["keys"] if "keys" in options else names
-    includeData = options["data"] if "data" in options else False
+    setStatus("Idle")
 
-    indicators = {}
-    for key in keys:
-        if key not in names:
-            continue
-        indicators[key] = {}
-        if includeData:
-            indicators[key]["data"] = readHdf("indicators/{}".format(key)).tolist()
-            indicators[key]["labels"] = list(range(0, len(indicators[key]["data"])))
-
-    emit("set_indicators", indicators)
+@socket.on("set_model_name")
+def setModelName(newName):
+    global name
+    name = newName
 
 if __name__ == "__main__":
     socket.run(app)
-

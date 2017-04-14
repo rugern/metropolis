@@ -1,20 +1,9 @@
 import json
-import sys
-import os
-import math
-import numpy
 import random
+import numpy
 import pandas
-import h5py
-from sklearn.preprocessing import MinMaxScaler
-from keras.layers import Input, Dense, LSTM, Embedding
-from keras.models import Model
-from keras.optimizers import sgd, RMSprop
 from bank import Bank
-import trading
-from matplotlib import pyplot
 import utility
-
 
 def save(model, outputName):
     if outputName is None:
@@ -51,7 +40,7 @@ def marketTest(model, data, raw):
     initialPrice = raw.iloc[0][3]
 
     for i in range(data.shape[0]):
-        estimate = model.predict(data[i].reshape(1 ,4))[0][3]
+        estimate = model.predict(data[i].reshape(1, 4))[0][3]
         price = raw.iloc[i][3]
         buy, sell = findAction(estimate, data[i][3])
         quota = random.random()
@@ -63,7 +52,7 @@ def marketTest(model, data, raw):
             sells += 1
         else:
             holds += 1
-        
+
         if i % 10000 == 0:
             holdValue = (startMoney / initialPrice) * price
             total = bank.calculateValue(price)
@@ -71,8 +60,8 @@ def marketTest(model, data, raw):
             profit = 100 * (total - startMoney) / startMoney
             relativeProfit = 100 * (total - holdValue) / holdValue
             print("".join(["Progress: {} | Funds: ${:.2f} | Bound: ${:.2f} | ",
-                   "Total: ${:.2f} | Hold: ${:.2f} | ",
-                  "Relative profit: {:.2f}% | Profit: {:.2f}%"])
+                           "Total: ${:.2f} | Hold: ${:.2f} | ",
+                           "Relative profit: {:.2f}% | Profit: {:.2f}%"])
                   .format(i, bank.funds, bound, total, holdValue, relativeProfit, profit))
             print("Buys: {} | Holds: {} | Sells: {}"
                   .format(buys, holds, sells))
@@ -86,7 +75,7 @@ def marketTest(model, data, raw):
     relativeProfit = 100 * (total - holdValue) / holdValue
 
     print("".join(["Funds: ${:.2f} | Bound: ${:.2f} | Total: ${:.2f} | Hold: ${:.2f} | ",
-          "Relative profit: {:.2f}% | Profit: {:.2f}%"])
+                   "Relative profit: {:.2f}% | Profit: {:.2f}%"])
           .format(bank.funds, bound, total, holdValue, relativeProfit, profit))
     print("Buys: {} | Holds: {} | Sells: {}"
           .format(buys, holds, sells))
@@ -98,8 +87,8 @@ if __name__ == "__main__":
 
     raw = pandas.read_hdf("data/EUR_USD_2017/EUR_USD_2017_01.hdf5")
     # raw = pandas.read_hdf("data/EUR_BITCOIN_2016/krakenEUR_2016_padded.hdf5")
-    trainingData, trainingLabels, testData, testLabels = utility.createData(raw, 10)
+    trainData, trainLabels, testData, testLabels, testLabelDt = utility.createData(raw, 10)
 
-    model = utility.getModel(trainingData, inputName)
-    train(model, trainingData, trainingLabels)
+    model = utility.getModel(trainData, inputName)
+    train(model, trainData, trainLabels)
     save(model, outputName)

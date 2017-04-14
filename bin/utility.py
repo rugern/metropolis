@@ -1,19 +1,14 @@
 import json
-import sys
 import os
-import math
+from os import listdir
+from os.path import isfile, join
 import numpy
-import random
-import pandas
 import h5py
 from sklearn.preprocessing import MinMaxScaler
-from keras.layers import Input, Dense, LSTM, Embedding
+from keras.layers import Input, Dense, LSTM
 from keras.models import Model
-from keras.optimizers import sgd, RMSprop
-from bank import Bank
+from keras.optimizers import sgd
 import trading
-from matplotlib import pyplot
-import utility
 
 def getModel(data, inputName=None):
     # model = Sequential()
@@ -40,10 +35,40 @@ def getModel(data, inputName=None):
 
     return model
 
+def getDirectoryList(path):
+    filenames = [name for name in listdir(path) if isfile(join(path, name))]
+    return filenames
+
 def saveToHdf(filename, data):
     output = h5py.File(filename, "w")
     output.create_dataset("data", data=data)
     output.close()
+
+def readHdf(name):
+    infile = h5py.File(name, "r")
+    data = infile["data"][:]
+    if len(data.shape) > 1:
+        data = data[:, 3]
+    infile.close()
+    return data
+
+def readJson(path):
+    data = None
+    with open(path, "r") as infile:
+        data = json.load(infile)
+    return data
+
+def writeJson(path, data):
+    with open(path, "w") as outfile:
+        json.dump(data, outfile)
+
+def saveModel(model, outputName):
+    if outputName is None:
+        return
+    print("Saving model weights...")
+    model.save_weights(outputName + ".h5", overwrite=True)
+    with open(outputName + ".json", "w") as outfile:
+        json.dump(model.to_json(), outfile)
 
 def scaleMatrix(values):
     scaler = MinMaxScaler(feature_range=(0, 1))
@@ -78,7 +103,7 @@ def createDataAndLabels(values, datetimes, lookback, save=False):
     labelDt = takeEvery(labelDt, 1, lookback)
 
     # 1. assert(len(labels) == len(indicators) == len(datetime)) for test
-    assert(len(labels) == len(data) == len(labelDt))
+    assert len(labels) == len(data) == len(labelDt)
 
     # 2. Lagre test-labels og -indicators (inkl ohlc) sammen med test-datetime
     if save:
@@ -88,8 +113,8 @@ def createDataAndLabels(values, datetimes, lookback, save=False):
         stringLabelDt = numpy.array(labelDt, dtype=numpy.dtype("S48"))
 
         # 4. assert(len(data) == len(labels)) for test og train
-        assert(comparisonData.shape[1] > 9)
-        assert(len(comparisonData) == len(labels) == len(stringLabelDt))
+        assert comparisonData.shape[1] > 9
+        assert len(comparisonData) == len(labels) == len(stringLabelDt)
 
         saveToHdf("labels/datetimes.h5", stringLabelDt)
         saveToHdf("indicators/open.h5", comparisonData[:, 0])
@@ -121,8 +146,8 @@ def createData(raw, lookback=5):
     train, test, trainDt, testDt = splitTrainAndTest(values, datetimes)
 
     # 5. For hver av train og test:
-    trainData, trainLabels, trainLabelDt = createDataAndLabels(train, trainDt, lookback)
+    trainData, trainLabels, _ = createDataAndLabels(train, trainDt, lookback)
     testData, testLabels, testLabelDt = createDataAndLabels(test, testDt, lookback, True)
 
     # 6. returner train og test, med data og labels
-    return trainData, trainLabels, testData, testLabels, testDt
+    return trainData, trainLabels, testData, testLabels, testLabelDt
