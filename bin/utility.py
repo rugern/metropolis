@@ -35,9 +35,16 @@ def getModel(data, inputName=None):
 
     return model
 
-def getDirectoryList(path):
+def getFileList(path, filetype=None):
     filenames = [name for name in listdir(path) if isfile(join(path, name))]
+    if filetype is not None:
+        filenames = list(filter(lambda filename: filetype in filename, filenames))
+        filenames = list(map(lambda filename: "".join(filename.split(".")[:-1]), filenames))
     return filenames
+
+def getDirectoryList(path):
+    folderNames = [name for name in listdir(path) if not isfile(join(path, name))]
+    return folderNames
 
 def saveToHdf(filename, data):
     output = h5py.File(filename, "w")
@@ -88,7 +95,7 @@ def takeEvery(values, startOffset, interval):
 def splice(values, start, end):
     return values[start:end] if end != 0 else values[start:]
 
-def createDataAndLabels(values, datetimes, lookback, save=False):
+def createDataAndLabels(values, datetimes, lookback, path, save=False):
     # 1. Fiks correction (også datetime). Ta høyde for at data og labels len er -1
     correction = (len(values) - 1) % lookback
     data = splice(values, 0, -1-correction)
@@ -116,22 +123,22 @@ def createDataAndLabels(values, datetimes, lookback, save=False):
         assert comparisonData.shape[1] > 9
         assert len(comparisonData) == len(labels) == len(stringLabelDt)
 
-        saveToHdf("labels/datetimes.h5", stringLabelDt)
-        saveToHdf("indicators/open.h5", comparisonData[:, 0])
-        saveToHdf("indicators/high.h5", comparisonData[:, 1])
-        saveToHdf("indicators/low.h5", comparisonData[:, 2])
-        saveToHdf("indicators/close.h5", comparisonData[:, 3])
-        saveToHdf("indicators/ema.h5", comparisonData[:, 4])
-        saveToHdf("indicators/rsi.h5", comparisonData[:, 5])
-        saveToHdf("indicators/upperband.h5", comparisonData[:, 6])
-        saveToHdf("indicators/middleband.h5", comparisonData[:, 7])
-        saveToHdf("indicators/lowerband.h5", comparisonData[:, 8])
+        saveToHdf(join(path["label"], "datetimes.h5"), stringLabelDt)
+        saveToHdf(join(path["indicator"], "open.h5"), comparisonData[:, 0])
+        saveToHdf(join(path["indicator"], "high.h5"), comparisonData[:, 1])
+        saveToHdf(join(path["indicator"], "low.h5"), comparisonData[:, 2])
+        saveToHdf(join(path["indicator"], "close.h5"), comparisonData[:, 3])
+        saveToHdf(join(path["indicator"], "ema.h5"), comparisonData[:, 4])
+        saveToHdf(join(path["indicator"], "rsi.h5"), comparisonData[:, 5])
+        saveToHdf(join(path["indicator"], "upperband.h5"), comparisonData[:, 6])
+        saveToHdf(join(path["indicator"], "middleband.h5"), comparisonData[:, 7])
+        saveToHdf(join(path["indicator"], "lowerband.h5"), comparisonData[:, 8])
 
     # 5. returner data og labels
     return data, labels, labelDt
 
 
-def createData(raw, lookback=5):
+def createData(raw, path, lookback=5):
     # 1. Dra ut datetime og values
     datetimes = raw.index.values
     values = raw.values
@@ -146,8 +153,8 @@ def createData(raw, lookback=5):
     train, test, trainDt, testDt = splitTrainAndTest(values, datetimes)
 
     # 5. For hver av train og test:
-    trainData, trainLabels, _ = createDataAndLabels(train, trainDt, lookback)
-    testData, testLabels, testLabelDt = createDataAndLabels(test, testDt, lookback, True)
+    trainData, trainLabels, _ = createDataAndLabels(train, trainDt, lookback, path)
+    testData, testLabels, testLabelDt = createDataAndLabels(test, testDt, lookback, path, True)
 
     # 6. returner train og test, med data og labels
     return trainData, trainLabels, testData, testLabels, testLabelDt

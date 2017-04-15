@@ -1,3 +1,5 @@
+import os
+from os.path import isfile, join
 import numpy
 import pandas
 import eventlet
@@ -5,7 +7,7 @@ from flask import Flask
 from flask_socketio import SocketIO, emit
 
 import utility
-from utility import readHdf, getDirectoryList
+from utility import readHdf, getFileList, getDirectoryList
 from predictions import createPredictions
 
 # eventlet.monkey_patch()
@@ -13,21 +15,33 @@ app = Flask(__name__)
 socket = SocketIO(app)
 
 status = "Idle"
-name = "1"
-dataFile = "data/EUR_USD_2017/EUR_USD_2017_01.hdf5"
+name = "model"
+dataFile = "EUR_USD_2017_01"
 epochs = 1
+baseFolder = "data"
+
+def createPaths():
+    return {
+        "base": join(baseFolder, dataFile),
+        "prediction": join(baseFolder, dataFile, "predictions"),
+        "indicator": join(baseFolder, dataFile, "indicators"),
+        "model": join(baseFolder, dataFile, "models"),
+        "label": join(baseFolder, dataFile, "labels")
+    }
+
 
 def calculateDatetimeRange(start, end, dt):
     offset = dt.index(min(dt, key=lambda x: abs(x - start)))
     limit = dt.index(min(dt, key=lambda x: abs(x - end))) - offset
     return offset, limit
 
-def getData(dataType, offset, limit):
+def getData(path, offset, limit):
     data = {}
-    names = getDirectoryList("{}/".format(dataType))
+    names = getFileList(path)
     for name in names:
-        data[name] = {}
-        data[name]["data"] = readHdf("{}/{}".format(dataType, name)).tolist()[offset:offset+limit]
+        shortName = "".join(name.split(".")[:-1])
+        data[shortName] = {}
+        data[shortName]["data"] = readHdf(join(path, name)).tolist()[offset:offset+limit]
     return data
 
 def setStatus(newStatus):
@@ -37,7 +51,8 @@ def setStatus(newStatus):
 
 @socket.on("get_data")
 def emitData(options):
-    datetimes = numpy.array(readHdf("labels/datetimes.h5"), dtype="datetime64[m]").tolist()
+    path = createPaths()
+    datetimes = numpy.array(readHdf(join(path["label"], "datetimes.h5")), dtype="datetime64[m]").tolist()
     # endTime = options["endTime"] if "endTime" in options else datetimes[-1]
     # startTime = options["startTime"] if "startTime" in options else datetimes[-min(len(datetimes), 1000)]
     limit = options["limit"] if "limit" in options else 200
@@ -48,8 +63,10 @@ def emitData(options):
 
     data = {}
     data["labels"] = labels
-    data["indicators"] = getData("indicators", offset, limit)
-    data["predictions"] = getData("predictions", offset, limit)
+    data["indicators"] = getData(path["indicator"], offset, limit)
+    data["predictions"] = getData(path["prediction"], offset, limit)
+    data["models"] = getFileList(path["model"], ".h5")
+    data["data"] = getDirectoryList(baseFolder)
 
     emit("set_data", data)
 
@@ -59,21 +76,18 @@ def emitStatus():
 
 @socket.on("start_train")
 def train():
-    setStatus("Initializing training")
-    raw = pandas.read_hdf(dataFile)
-    trainData, trainLabels, testData, testLabels, testLabelDt = utility.createData(raw, 5)
-    model = utility.getModel(trainData, "model/testmodel{}.h5".format(name))
+    path = createPaths()
+    raw = pandas.read_hdf(join(path["base"], "{}.h5".format(dataFile)))
+    trainData, trainLabels, testData, testLabels, testLabelDt = utility.createData(raw, path, 5)
+    model = utility.getModel(trainData, join(path["model"], name))
 
-    setStatus("Training")
     model.fit(trainData, trainLabels, epochs=epochs, batch_size=32)
-    utility.saveModel(model, "model/testmodel{}.h5".format(name))
+    utility.saveModel(model, join(path["model"], name))
 
-    setStatus("Creating predictions")
     predictions = createPredictions(model, testData)
 
     assert len(predictions) == len(testLabels) == len(testLabelDt)
-    utility.saveToHdf("predictions/predictions{}.h5".format(name), predictions)
-    utility.saveToHdf("predictions/labels{}.h5".format(name), testLabels)
+    utility.saveToHdf(join(path["prediction"], "{}.h5".format(name)), predictions)
 
     setStatus("Idle")
 
@@ -86,6 +100,21 @@ def setModelName(newName):
 def setEpochs(newValue):
     global epochs
     epochs = newValue
+
+@socket.on("delete_model")
+def deleteModel(name):
+    path = createPaths()
+    setStatus("Deleting model")
+    files = []
+    files.append(join(path["model"], "{}.h5".format(name)))
+    files.append(join(path["model"], "{}.json".format(name)))
+    files.append(join(path["prediction"], "{}.h5".format(name)))
+    for filename in files:
+        if not isfile(filename):
+            print("Could not find filename: {}".format(filename))
+            continue
+        os.remove(filename)
+    setStatus("Idle")
 
 if __name__ == "__main__":
     socket.run(app)

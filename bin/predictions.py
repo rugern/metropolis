@@ -1,19 +1,4 @@
-import json
-import sys
-import os
-import math
 import numpy
-import random
-import pandas
-import h5py
-from sklearn.preprocessing import MinMaxScaler
-from keras.layers import Input, Dense, LSTM, Embedding
-from keras.models import Model
-from keras.optimizers import sgd, RMSprop
-from bank import Bank
-import trading
-from matplotlib import pyplot
-import utility
 
 def createPredictions(model, data):
     printIntervals = 10
@@ -28,16 +13,16 @@ def createPredictions(model, data):
     print("Finished creating predictions")
     return predictions
 
-if __name__ == "__main__":
-    number = 1
-    inputName = "model/testmodel{}".format(number)
+# if __name__ == "__main__":
+    # number = 1
+    # inputName = "model/testmodel{}".format(number)
 
-    raw = pandas.read_hdf("data/EUR_USD_2017/EUR_USD_2017_01.hdf5")
-    trainData, trainLabels, testData, testLabels, testLabelDt = utility.createData(raw, 5)
-    model = utility.getModel(trainData, inputName)
+    # raw = pandas.read_hdf("data/EUR_USD_2017/EUR_USD_2017_01.hdf5")
+    # trainData, trainLabels, testData, testLabels, testLabelDt = utility.createData(raw, 5)
+    # model = utility.getModel(trainData, inputName)
 
-    predictions = createPredictions(model, testData)
+    # predictions = createPredictions(model, testData)
 
-    assert len(predictions) == len(testLabels) == len(testLabelDt)
-    utility.saveToHdf("predictions/predictions{}.h5".format(number), predictions)
-    utility.saveToHdf("predictions/labels{}.h5".format(number), testLabels)
+    # assert len(predictions) == len(testLabels) == len(testLabelDt)
+    # utility.saveToHdf("predictions/predictions{}.h5".format(number), predictions)
+    # utility.saveToHdf("predictions/labels{}.h5".format(number), testLabels)
