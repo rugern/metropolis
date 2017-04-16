@@ -16,17 +16,17 @@ socket = SocketIO(app)
 
 status = "Idle"
 name = "model"
-dataFile = "EUR_USD_2017_01"
+datafile = "EUR_USD_2017_01"
 epochs = 1
 baseFolder = "data"
 
 def createPaths():
     return {
-        "base": join(baseFolder, dataFile),
-        "prediction": join(baseFolder, dataFile, "predictions"),
-        "indicator": join(baseFolder, dataFile, "indicators"),
-        "model": join(baseFolder, dataFile, "models"),
-        "label": join(baseFolder, dataFile, "labels")
+        "base": join(baseFolder, datafile),
+        "prediction": join(baseFolder, datafile, "predictions"),
+        "indicator": join(baseFolder, datafile, "indicators"),
+        "model": join(baseFolder, datafile, "models"),
+        "label": join(baseFolder, datafile, "labels")
     }
 
 
@@ -66,7 +66,8 @@ def emitData(options):
     data["indicators"] = getData(path["indicator"], offset, limit)
     data["predictions"] = getData(path["prediction"], offset, limit)
     data["models"] = getFileList(path["model"], ".h5")
-    data["data"] = getDirectoryList(baseFolder)
+    data["datafiles"] = getDirectoryList(baseFolder)
+    data["datafile"] = datafile
 
     emit("set_data", data)
 
@@ -77,7 +78,7 @@ def emitStatus():
 @socket.on("start_train")
 def train():
     path = createPaths()
-    raw = pandas.read_hdf(join(path["base"], "{}.h5".format(dataFile)))
+    raw = pandas.read_hdf(join(path["base"], "{}.h5".format(datafile)))
     trainData, trainLabels, testData, testLabels, testLabelDt = utility.createData(raw, path, 5)
     model = utility.getModel(trainData, join(path["model"], name))
 
