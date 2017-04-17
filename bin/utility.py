@@ -4,11 +4,51 @@ from os import listdir
 from os.path import isfile, join
 import numpy
 import h5py
-from sklearn.preprocessing import MinMaxScaler
 from keras.layers import Input, Dense, LSTM
 from keras.models import Model
 from keras.optimizers import sgd
 import trading
+
+def normalize(inMatrix):
+    scales = []
+    matrix = inMatrix.copy()
+
+    # Reshape parameter to matrix
+    isArray = len(matrix.shape) == 1
+    if isArray:
+        matrix = matrix.reshape((-1, 1))
+
+    for index in range(matrix.shape[1]):
+        columnMin = matrix[:, index].min()
+        columnMax = matrix[:, index].max()
+        matrix[:, index] = (matrix[:, index] - columnMin) / (columnMax - columnMin)
+        scales.append((columnMin, columnMax))
+
+    # Reshape back to match parameter shape (if changed)
+    if isArray:
+        matrix = matrix.reshape((-1))
+        scales = scales[0]
+
+    return matrix, scales
+
+def inverse_normalize(inMatrix, scales):
+    matrix = inMatrix.copy()
+
+    # Reshape parameter to matrix
+    isArray = len(matrix.shape) == 1
+    if isArray:
+        matrix = matrix.reshape((-1, 1))
+        scales = [scales]
+
+    for index in range(matrix.shape[1]):
+        scale = scales[index]
+        matrix[:, index] = matrix[:, index] * (scale[1] - scale[0]) + scale[0]
+
+    # Reshape back to match parameter shape (if changed)
+    if isArray:
+        matrix = matrix.reshape((-1))
+
+    return matrix
 
 def getModel(data, inputName=None):
     # model = Sequential()
@@ -36,6 +76,8 @@ def getModel(data, inputName=None):
     return model
 
 def getFileList(path, filetype=None):
+    if not os.path.exists(path):
+        return []
     filenames = [name for name in listdir(path) if isfile(join(path, name))]
     if filetype is not None:
         filenames = list(filter(lambda filename: filetype in filename, filenames))
@@ -43,6 +85,8 @@ def getFileList(path, filetype=None):
     return filenames
 
 def getDirectoryList(path):
+    if not os.path.exists(path):
+        return []
     folderNames = [name for name in listdir(path) if not isfile(join(path, name))]
     return folderNames
 
@@ -51,11 +95,13 @@ def saveToHdf(filename, data):
     output.create_dataset("data", data=data)
     output.close()
 
-def readHdf(name):
+def readHdf(name, column=None):
+    if not isfile(name):
+        return []
     infile = h5py.File(name, "r")
     data = infile["data"][:]
-    if len(data.shape) > 1:
-        data = data[:, 3]
+    if column is not None and data.shape[1] > column:
+        data = data[:, column]
     infile.close()
     return data
 
@@ -77,10 +123,6 @@ def saveModel(model, outputName):
     with open(outputName + ".json", "w") as outfile:
         json.dump(model.to_json(), outfile)
 
-def scaleMatrix(values):
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    return scaler.fit_transform(values)
-
 def splitTrainAndTest(values, datetimes, ratio=0.7):
     trainLength = round(len(values) * ratio)
     train = values[:trainLength]
@@ -95,7 +137,7 @@ def takeEvery(values, startOffset, interval):
 def splice(values, start, end):
     return values[start:end] if end != 0 else values[start:]
 
-def createDataAndLabels(values, datetimes, lookback, path, save=False):
+def createDataAndLabels(values, datetimes, lookback, path=None, save=False, scales=None):
     # 1. Fiks correction (også datetime). Ta høyde for at data og labels len er -1
     correction = (len(values) - 1) % lookback
     data = splice(values, 0, -1-correction)
@@ -114,8 +156,11 @@ def createDataAndLabels(values, datetimes, lookback, path, save=False):
 
     # 2. Lagre test-labels og -indicators (inkl ohlc) sammen med test-datetime
     if save:
+        assert(path is not None and scales is not None)
         comparisonData = splice(values, 1, -correction)
         comparisonData = takeEvery(comparisonData, 1, lookback)
+        comparisonData = inverse_normalize(comparisonData, scales)
+
         # h5py doesnt support utf-8, so store as ascii
         stringLabelDt = numpy.array(labelDt, dtype=numpy.dtype("S48"))
 
@@ -145,16 +190,19 @@ def createData(raw, path, lookback=5):
 
     # 3. Lag indikatordata, fjern NaN
     values, datetimes = trading.createIndicators(values, datetimes)
+    # close = numpy.copy(values)
+    # _, close, _, closeDt = splitTrainAndTest(close, datetimes)
+    # _, close, _ = createDataAndLabels(close, closeDt, lookback)
 
     # 2. normaliser values
-    values = scaleMatrix(values)
+    values, scales = normalize(values)
 
     # 4. splitTrainAndTest
     train, test, trainDt, testDt = splitTrainAndTest(values, datetimes)
 
     # 5. For hver av train og test:
-    trainData, trainLabels, _ = createDataAndLabels(train, trainDt, lookback, path)
-    testData, testLabels, testLabelDt = createDataAndLabels(test, testDt, lookback, path, True)
+    trainData, trainLabels, _ = createDataAndLabels(train, trainDt, lookback)
+    testData, testLabels, testLabelDt = createDataAndLabels(test, testDt, lookback, path, True, scales)
 
     # 6. returner train og test, med data og labels
-    return trainData, trainLabels, testData, testLabels, testLabelDt
+    return trainData, trainLabels, testData, testLabels, testLabelDt, scales

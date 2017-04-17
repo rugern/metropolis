@@ -2,7 +2,6 @@ import os
 from os.path import isfile, join
 import numpy
 import pandas
-import eventlet
 from flask import Flask
 from flask_socketio import SocketIO, emit
 
@@ -10,13 +9,12 @@ import utility
 from utility import readHdf, getFileList, getDirectoryList
 from predictions import createPredictions
 
-# eventlet.monkey_patch()
 app = Flask(__name__)
 socket = SocketIO(app)
 
 status = "Idle"
 name = "model"
-datafile = "EUR_USD_2017_01"
+datafile = "EUR_USD_2017_1_10m"
 epochs = 1
 baseFolder = "data"
 
@@ -28,7 +26,6 @@ def createPaths():
         "model": join(baseFolder, datafile, "models"),
         "label": join(baseFolder, datafile, "labels")
     }
-
 
 def calculateDatetimeRange(start, end, dt):
     offset = dt.index(min(dt, key=lambda x: abs(x - start)))
@@ -44,10 +41,13 @@ def getData(path, offset, limit):
         data[shortName]["data"] = readHdf(join(path, name)).tolist()[offset:offset+limit]
     return data
 
+def emitStatus():
+    socket.emit("set_metropolis_status", status)
+
 def setStatus(newStatus):
     global status
     status = newStatus
-    emitStatus()
+    socket.start_background_task(target=emitStatus)
 
 @socket.on("get_data")
 def emitData(options):
@@ -68,24 +68,31 @@ def emitData(options):
     data["models"] = getFileList(path["model"], ".h5")
     data["datafiles"] = getDirectoryList(baseFolder)
     data["datafile"] = datafile
+    data["datasize"] = len(datetimes)
 
     emit("set_data", data)
 
 @socket.on("get_metropolis_status")
-def emitStatus():
-    emit("set_metropolis_status", status)
+def getStatus():
+    emitStatus()
 
 @socket.on("start_train")
 def train():
+    setStatus("Initializing training")
     path = createPaths()
     raw = pandas.read_hdf(join(path["base"], "{}.h5".format(datafile)))
-    trainData, trainLabels, testData, testLabels, testLabelDt = utility.createData(raw, path, 5)
+
+    setStatus("Creating training data")
+    trainData, trainLabels, testData, testLabels, testLabelDt, scales = utility.createData(raw, path, 5)
     model = utility.getModel(trainData, join(path["model"], name))
 
+    setStatus("Training")
     model.fit(trainData, trainLabels, epochs=epochs, batch_size=32)
     utility.saveModel(model, join(path["model"], name))
 
+    setStatus("Creating predictions")
     predictions = createPredictions(model, testData)
+    predictions = utility.inverse_normalize(predictions, scales[3])
 
     assert len(predictions) == len(testLabels) == len(testLabelDt)
     utility.saveToHdf(join(path["prediction"], "{}.h5".format(name)), predictions)
@@ -116,6 +123,16 @@ def deleteModel(name):
             continue
         os.remove(filename)
     setStatus("Idle")
+
+@socket.on("set_datafile")
+def setDatafile(newDatafile):
+    global datafile
+    datafile = newDatafile
+    paths = createPaths()
+    for key, path in paths.items():
+        if not os.path.exists(path):
+            print("Creating directory '{}'".format(path))
+            os.makedirs(path)
 
 if __name__ == "__main__":
     socket.run(app)

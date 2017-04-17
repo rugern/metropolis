@@ -1,3 +1,5 @@
+raw/
+data/
 venv
 
 .DS_Store
