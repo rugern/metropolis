@@ -9,6 +9,11 @@ from keras.models import Model
 from keras.optimizers import sgd
 import trading
 
+def assertOrCreateDirectory(path):
+    if not os.path.exists(path):
+        print("Creating directory '{}'".format(path))
+        os.makedirs(path)
+
 def normalize(inMatrix):
     scales = []
     matrix = inMatrix.copy()
@@ -122,6 +127,7 @@ def saveModel(model, outputName):
     model.save_weights(outputName + ".h5", overwrite=True)
     with open(outputName + ".json", "w") as outfile:
         json.dump(model.to_json(), outfile)
+    print("Finished saving model weights")
 
 def splitTrainAndTest(values, datetimes, ratio=0.7):
     trainLength = round(len(values) * ratio)
@@ -137,7 +143,7 @@ def takeEvery(values, startOffset, interval):
 def splice(values, start, end):
     return values[start:end] if end != 0 else values[start:]
 
-def createDataAndLabels(values, datetimes, lookback, path=None, save=False, scales=None):
+def createDataAndLabels(values, datetimes, lookback, prefix=None, path=None, save=False, scales=None):
     # 1. Fiks correction (også datetime). Ta høyde for at data og labels len er -1
     correction = (len(values) - 1) % lookback
     data = splice(values, 0, -1-correction)
@@ -156,7 +162,7 @@ def createDataAndLabels(values, datetimes, lookback, path=None, save=False, scal
 
     # 2. Lagre test-labels og -indicators (inkl ohlc) sammen med test-datetime
     if save:
-        assert(path is not None and scales is not None)
+        assert(path is not None and scales is not None and prefix is not None)
         comparisonData = splice(values, 1, -correction)
         comparisonData = takeEvery(comparisonData, 1, lookback)
         comparisonData = inverse_normalize(comparisonData, scales)
@@ -168,31 +174,33 @@ def createDataAndLabels(values, datetimes, lookback, path=None, save=False, scal
         assert comparisonData.shape[1] > 9
         assert len(comparisonData) == len(labels) == len(stringLabelDt)
 
-        saveToHdf(join(path["label"], "datetimes.h5"), stringLabelDt)
-        saveToHdf(join(path["indicator"], "open.h5"), comparisonData[:, 0])
-        saveToHdf(join(path["indicator"], "high.h5"), comparisonData[:, 1])
-        saveToHdf(join(path["indicator"], "low.h5"), comparisonData[:, 2])
-        saveToHdf(join(path["indicator"], "close.h5"), comparisonData[:, 3])
-        saveToHdf(join(path["indicator"], "ema.h5"), comparisonData[:, 4])
-        saveToHdf(join(path["indicator"], "rsi.h5"), comparisonData[:, 5])
-        saveToHdf(join(path["indicator"], "upperband.h5"), comparisonData[:, 6])
-        saveToHdf(join(path["indicator"], "middleband.h5"), comparisonData[:, 7])
-        saveToHdf(join(path["indicator"], "lowerband.h5"), comparisonData[:, 8])
+        assertOrCreateDirectory(path["indicator"])
+        saveToHdf(join(path["base"], "datetimes.h5"), stringLabelDt)
+        saveToHdf(join(path["indicator"], "{}-open.h5".format(prefix)), comparisonData[:, 0])
+        saveToHdf(join(path["indicator"], "{}-high.h5".format(prefix)), comparisonData[:, 1])
+        saveToHdf(join(path["indicator"], "{}-low.h5".format(prefix)), comparisonData[:, 2])
+        saveToHdf(join(path["indicator"], "{}-close.h5".format(prefix)), comparisonData[:, 3])
+        saveToHdf(join(path["indicator"], "{}-ema.h5".format(prefix)), comparisonData[:, 4])
+        saveToHdf(join(path["indicator"], "{}-rsi.h5".format(prefix)), comparisonData[:, 5])
+        saveToHdf(join(path["indicator"], "{}-upperband.h5".format(prefix)), comparisonData[:, 6])
+        saveToHdf(join(path["indicator"], "{}-middleband.h5".format(prefix)), comparisonData[:, 7])
+        saveToHdf(join(path["indicator"], "{}-lowerband.h5".format(prefix)), comparisonData[:, 8])
 
     # 5. returner data og labels
-    return data, labels, labelDt
+    return {
+        "data": data,
+        "labels": labels,
+        "labelDt": labelDt
+    }
 
 
-def createData(raw, path, lookback=5):
+def createData(raw, path, prefix, lookback=5):
     # 1. Dra ut datetime og values
     datetimes = raw.index.values
     values = raw.values
 
     # 3. Lag indikatordata, fjern NaN
     values, datetimes = trading.createIndicators(values, datetimes)
-    # close = numpy.copy(values)
-    # _, close, _, closeDt = splitTrainAndTest(close, datetimes)
-    # _, close, _ = createDataAndLabels(close, closeDt, lookback)
 
     # 2. normaliser values
     values, scales = normalize(values)
@@ -201,8 +209,11 @@ def createData(raw, path, lookback=5):
     train, test, trainDt, testDt = splitTrainAndTest(values, datetimes)
 
     # 5. For hver av train og test:
-    trainData, trainLabels, _ = createDataAndLabels(train, trainDt, lookback)
-    testData, testLabels, testLabelDt = createDataAndLabels(test, testDt, lookback, path, True, scales)
+    dataset = {
+        "scales": scales
+    }
+    dataset["train"] = createDataAndLabels(train, trainDt, lookback)
+    dataset["test"] = createDataAndLabels(test, testDt, lookback, prefix, path, True, scales)
 
     # 6. returner train og test, med data og labels
-    return trainData, trainLabels, testData, testLabels, testLabelDt, scales
+    return dataset

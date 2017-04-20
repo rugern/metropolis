@@ -1,16 +1,20 @@
+from os.path import join
 import numpy
+import utility
 
-def createPredictions(model, data):
-    printIntervals = 10
-    predictions = numpy.zeros((data.shape[0]))
-    modulo = predictions.shape[0] // printIntervals
-    print("Creating predictions...")
-    for i in range(0, predictions.shape[0]):
-        predictions[i] = model.predict(data[i].reshape(1, data.shape[1], data.shape[2]))
-        if i % modulo == 0:
-            print("Progress: {}/{}".format(i, predictions.shape[0]))
-    print("Progress: {}/{}".format(predictions.shape[0], predictions.shape[0]))
-    print("Finished creating predictions")
+def createPredictions(model, dataset, path, name, prefix):
+    data = dataset["test"]["data"] 
+    labels = dataset["test"]["labels"] 
+    dt = dataset["test"]["labelDt"]
+    scale = dataset["scales"][3]
+
+    predictions = model.predict(data).reshape((-1))
+    predictions = utility.inverse_normalize(predictions, scale)
+
+    assert len(predictions) == len(labels) == len(dt)
+    utility.assertOrCreateDirectory(path["prediction"])
+    utility.saveToHdf(join(path["prediction"], "{}-{}.h5".format(prefix, name)), predictions)
+
     return predictions
 
 # if __name__ == "__main__":
@@ -18,7 +22,7 @@ def createPredictions(model, data):
     # inputName = "model/testmodel{}".format(number)
 
     # raw = pandas.read_hdf("data/EUR_USD_2017/EUR_USD_2017_01.hdf5")
-    # trainData, trainLabels, testData, testLabels, testLabelDt = utility.createData(raw, 5)
+    # trainData, trainLabels, data, testLabels, testLabelDt = utility.createData(raw, 5)
     # model = utility.getModel(trainData, inputName)
 
     # predictions = createPredictions(model, testData)

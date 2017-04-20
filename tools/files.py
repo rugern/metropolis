@@ -16,7 +16,7 @@ def sample(data, interval, pad=False):
 
 def readCsv(infile):
     # return pandas.read_csv(infile, usecols=[0, 1], header=None, names=["DateTime", "Buy"], index_col=0, parse_dates=True, date_parser=dateparse)
-    return pandas.read_csv(infile, usecols=[3, 4], header=0, names=["DateTime", "Buy"], index_col=0, parse_dates=True)
+    return pandas.read_csv(infile, usecols=[3, 4, 5], header=0, names=["DateTime", "Buy", "Sell"], index_col=0, parse_dates=True)
 
 def writeData(outfile, data):
     data.to_hdf(outfile, key="bitcoin")

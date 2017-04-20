@@ -1,9 +1,11 @@
 import os
 from os.path import isfile, join
+import shutil
 import numpy
 import pandas
 from flask import Flask
 from flask_socketio import SocketIO, emit
+import keras
 
 import utility
 from utility import readHdf, getFileList, getDirectoryList
@@ -18,13 +20,50 @@ datafile = "EUR_USD_2017_1_10m"
 epochs = 1
 baseFolder = "data"
 
+class KerasLogger(keras.callbacks.Callback):
+    def __init__(self, target, eventName):
+        super()
+        self.target = target
+        self.eventName = eventName
+
+    def __call__(self, message):
+        self.target.start_background_task(target=self.log, message=message)
+
+    def log(self, message):
+        self.target.emit(self.eventName, message)
+
+    def on_epoch_begin(self, epoch, logs=None):
+        self.samples = self.params["samples"]
+        self.__call__("Epoch {}/{}".format(epoch + 1, self.epochs))
+
+    def on_epoch_end(self, epoch, logs=None):
+        self.__call__("Loss: {}".format(logs["loss"]))
+
+    def on_batch_begin(self, batch, logs=None):
+        pass
+
+    def on_batch_end(self, batch, logs=None):
+        batchSize = logs.get('size', 0)
+        self.seen += batchSize
+        self.__call__("Progress: {}/{}".format(self.seen, self.samples))
+
+
+    def on_train_begin(self, logs=None):
+        self.epochs = self.params["epochs"]
+        self.seen = 0
+        self.batchSize = self.params["batch_size"]
+        self.__call__("Train begin")
+
+
+    def on_train_end(self, logs=None):
+        self.__call__("Train end")
+
 def createPaths():
     return {
         "base": join(baseFolder, datafile),
         "prediction": join(baseFolder, datafile, "predictions"),
         "indicator": join(baseFolder, datafile, "indicators"),
-        "model": join(baseFolder, datafile, "models"),
-        "label": join(baseFolder, datafile, "labels")
+        "model": join(baseFolder, datafile, "models", name),
     }
 
 def calculateDatetimeRange(start, end, dt):
@@ -52,7 +91,7 @@ def setStatus(newStatus):
 @socket.on("get_data")
 def emitData(options):
     path = createPaths()
-    datetimes = numpy.array(readHdf(join(path["label"], "datetimes.h5")), dtype="datetime64[m]").tolist()
+    datetimes = numpy.array(readHdf(join(path["base"], "datetimes.h5")), dtype="datetime64[m]").tolist()
     # endTime = options["endTime"] if "endTime" in options else datetimes[-1]
     # startTime = options["startTime"] if "startTime" in options else datetimes[-min(len(datetimes), 1000)]
     limit = options["limit"] if "limit" in options else 200
@@ -65,7 +104,7 @@ def emitData(options):
     data["labels"] = labels
     data["indicators"] = getData(path["indicator"], offset, limit)
     data["predictions"] = getData(path["prediction"], offset, limit)
-    data["models"] = getFileList(path["model"], ".h5")
+    data["models"] = getDirectoryList(join(path["base"], "models"))
     data["datafiles"] = getDirectoryList(baseFolder)
     data["datafile"] = datafile
     data["datasize"] = len(datetimes)
@@ -76,26 +115,40 @@ def emitData(options):
 def getStatus():
     emitStatus()
 
+def trainModel(dataset, path, prefix, logger):
+    trainData = dataset["train"]["data"]
+    trainLabels = dataset["train"]["labels"]
+
+    modelPath = join(path["model"], prefix)
+    utility.assertOrCreateDirectory(path["model"])
+    model = utility.getModel(trainData, modelPath)
+
+    setStatus("Training {}".format(prefix))
+    model.fit(trainData, trainLabels, epochs=epochs, batch_size=32, callbacks=[logger])
+    utility.saveModel(model, modelPath)
+    return model
+
+
 @socket.on("start_train")
 def train():
+    logger = KerasLogger(socket, "add_metropolis_info")
+
     setStatus("Initializing training")
     path = createPaths()
     raw = pandas.read_hdf(join(path["base"], "{}.h5".format(datafile)))
+    rawBuy = raw["Buy"]
+    # rawSell = raw["Sell"]
 
     setStatus("Creating training data")
-    trainData, trainLabels, testData, testLabels, testLabelDt, scales = utility.createData(raw, path, 5)
-    model = utility.getModel(trainData, join(path["model"], name))
+    buy = utility.createData(rawBuy, path, "buy", 5)
+    # sell = utility.createData(rawSell, path, "sell", 5)
 
-    setStatus("Training")
-    model.fit(trainData, trainLabels, epochs=epochs, batch_size=32)
-    utility.saveModel(model, join(path["model"], name))
+    buyModel = trainModel(buy, path, "buy", logger)
+    # sellModel = trainModel(sell, path, "sell", logger)
 
     setStatus("Creating predictions")
-    predictions = createPredictions(model, testData)
-    predictions = utility.inverse_normalize(predictions, scales[3])
-
-    assert len(predictions) == len(testLabels) == len(testLabelDt)
-    utility.saveToHdf(join(path["prediction"], "{}.h5".format(name)), predictions)
+    createPredictions(buyModel, buy, path, name, "buy")
+    # createPredictions(sellModel, sell, path, name, "sell")
 
     setStatus("Idle")
 
@@ -114,25 +167,30 @@ def deleteModel(name):
     path = createPaths()
     setStatus("Deleting model")
     files = []
-    files.append(join(path["model"], "{}.h5".format(name)))
-    files.append(join(path["model"], "{}.json".format(name)))
-    files.append(join(path["prediction"], "{}.h5".format(name)))
+    files.append(join(path["prediction"], "{}-{}.h5".format("buy", name)))
+    # files.append(join(path["prediction"], "{}-{}.h5".format("sell", name)))
+
+    dirs = []
+    dirs.append(path["model"])
+
     for filename in files:
         if not isfile(filename):
             print("Could not find filename: {}".format(filename))
             continue
         os.remove(filename)
+
+    for dirname in dirs:
+        if not os.path.exists:
+            print("Could not find directory: {}".format(dirname))
+            continue
+        shutil.rmtree(dirname)
+
     setStatus("Idle")
 
 @socket.on("set_datafile")
 def setDatafile(newDatafile):
     global datafile
     datafile = newDatafile
-    paths = createPaths()
-    for key, path in paths.items():
-        if not os.path.exists(path):
-            print("Creating directory '{}'".format(path))
-            os.makedirs(path)
 
 if __name__ == "__main__":
     socket.run(app)
