@@ -140,15 +140,15 @@ def train():
     # rawSell = raw["Sell"]
 
     setStatus("Creating training data")
-    buy = utility.createData(rawBuy, path, "buy", 5)
-    # sell = utility.createData(rawSell, path, "sell", 5)
+    bid = utility.createData(rawBuy, path, "bid", 5)
+    # ask = utility.createData(rawSell, path, "ask", 5)
 
-    buyModel = trainModel(buy, path, "buy", logger)
-    # sellModel = trainModel(sell, path, "sell", logger)
+    bidModel = trainModel(bid, path, "bid", logger)
+    # sellModel = trainModel(ask, path, "ask", logger)
 
     setStatus("Creating predictions")
-    createPredictions(buyModel, buy, path, name, "buy")
-    # createPredictions(sellModel, sell, path, name, "sell")
+    createPredictions(bidModel, bid, path, name, "bid")
+    # createPredictions(sellModel, ask, path, name, "ask")
 
     setStatus("Idle")
 
@@ -167,8 +167,8 @@ def deleteModel(name):
     path = createPaths()
     setStatus("Deleting model")
     files = []
-    files.append(join(path["prediction"], "{}-{}.h5".format("buy", name)))
-    # files.append(join(path["prediction"], "{}-{}.h5".format("sell", name)))
+    files.append(join(path["prediction"], "{}-{}.h5".format("bid", name)))
+    # files.append(join(path["prediction"], "{}-{}.h5".format("ask", name)))
 
     dirs = []
     dirs.append(path["model"])
