@@ -21,19 +21,19 @@ epochs = 1
 baseFolder = "data"
 
 class KerasLogger(keras.callbacks.Callback):
-    def __init__(self, target, eventName):
+    def __init__(self, eventName):
         super()
-        self.target = target
         self.eventName = eventName
 
     def __call__(self, message):
-        self.target.start_background_task(target=self.log, message=message)
+        socket.start_background_task(target=self.log, message=message)
 
     def log(self, message):
-        self.target.emit(self.eventName, message)
+        socket.emit(self.eventName, message)
 
     def on_epoch_begin(self, epoch, logs=None):
         self.samples = self.params["samples"]
+        self.seen = 0
         self.__call__("Epoch {}/{}".format(epoch + 1, self.epochs))
 
     def on_epoch_end(self, epoch, logs=None):
@@ -50,7 +50,6 @@ class KerasLogger(keras.callbacks.Callback):
 
     def on_train_begin(self, logs=None):
         self.epochs = self.params["epochs"]
-        self.seen = 0
         self.batchSize = self.params["batch_size"]
         self.__call__("Train begin")
 
@@ -104,9 +103,6 @@ def emitData(options):
     data["labels"] = labels
     data["indicators"] = getData(path["indicator"], offset, limit)
     data["predictions"] = getData(path["prediction"], offset, limit)
-    data["models"] = getDirectoryList(join(path["base"], "models"))
-    data["datafiles"] = getDirectoryList(baseFolder)
-    data["datafile"] = datafile
     data["datasize"] = len(datetimes)
 
     emit("set_data", data)
@@ -131,24 +127,24 @@ def trainModel(dataset, path, prefix, logger):
 
 @socket.on("start_train")
 def train():
-    logger = KerasLogger(socket, "add_metropolis_info")
+    logger = KerasLogger("add_metropolis_info")
 
     setStatus("Initializing training")
     path = createPaths()
     raw = pandas.read_hdf(join(path["base"], "{}.h5".format(datafile)))
-    rawBuy = raw["Buy"]
-    # rawSell = raw["Sell"]
+    rawBid = raw["Bid"]
+    # rawAsk = raw["Ask"]
 
     setStatus("Creating training data")
-    bid = utility.createData(rawBuy, path, "bid", 5)
-    # ask = utility.createData(rawSell, path, "ask", 5)
+    bid = utility.createData(rawBid, path, "bid", 5)
+    # ask = utility.createData(rawAsk, path, "ask", 5)
 
     bidModel = trainModel(bid, path, "bid", logger)
-    # sellModel = trainModel(ask, path, "ask", logger)
+    # askModel = trainModel(ask, path, "ask", logger)
 
     setStatus("Creating predictions")
     createPredictions(bidModel, bid, path, name, "bid")
-    # createPredictions(sellModel, ask, path, name, "ask")
+    # createPredictions(askModel, ask, path, name, "ask")
 
     setStatus("Idle")
 
@@ -163,15 +159,15 @@ def setEpochs(newValue):
     epochs = newValue
 
 @socket.on("delete_model")
-def deleteModel(name):
+def deleteModel(deleteName):
     path = createPaths()
     setStatus("Deleting model")
     files = []
-    files.append(join(path["prediction"], "{}-{}.h5".format("bid", name)))
-    # files.append(join(path["prediction"], "{}-{}.h5".format("ask", name)))
+    files.append(join(path["prediction"], "{}-{}.h5".format("bid", deleteName)))
+    # files.append(join(path["prediction"], "{}-{}.h5".format("ask", deleteName)))
 
     dirs = []
-    dirs.append(path["model"])
+    dirs.append(join(path["base"], "models", deleteName))
 
     for filename in files:
         if not isfile(filename):
@@ -180,17 +176,51 @@ def deleteModel(name):
         os.remove(filename)
 
     for dirname in dirs:
-        if not os.path.exists:
+        if not os.path.exists(dirname):
             print("Could not find directory: {}".format(dirname))
             continue
         shutil.rmtree(dirname)
 
     setStatus("Idle")
 
+@socket.on("get_datafiles")
+def getDatafiles():
+    emit("set_datafiles", getDirectoryList(baseFolder))
+
+@socket.on("get_datafile")
+def getDatafiles():
+    emit("set_datafile", datafile)
+
 @socket.on("set_datafile")
 def setDatafile(newDatafile):
     global datafile
     datafile = newDatafile
+    emit("datafile_changed")
+
+@socket.on("get_models")
+def getModels():
+    path = createPaths()
+    emit("set_models", getDirectoryList(join(path["base"], "models")))
+
+@socket.on("market_test")
+def marketTest():
+    logger = KerasLogger("add_metropolis_info")
+
+    raw = pandas.read_hdf(join(path["base"], "{}.h5".format(datafile)))
+    rawBid = raw["Bid"]
+
+    setStatus("Creating training data")
+    bid = utility.createData(rawBid, path, "bid", 5)
+
+    modelPath = join(path["model"], "bid")
+    trainData = dataset["train"]["data"]
+    bidModel = utility.getModel(trainData, modelPath)
+    close = numpy.array(readHdf(join(path["indicator"], "{}-close.h5".format("bid"))))
+
+    setStatus("Creating predictions")
+    predictions = createPredictions(bidModel, bid, path, name, "bid")
+
+    bank = testProfitability(model, predictions, close)
 
 if __name__ == "__main__":
     socket.run(app)
