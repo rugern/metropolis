@@ -23,37 +23,37 @@ def writeData(outfile, data):
 
 if __name__ == "__main__":
     inputNames = [
-        "raw/EUR_USD_2016/october/EUR_USD_Week1.csv",
-        "raw/EUR_USD_2016/october/EUR_USD_Week2.csv",
-        "raw/EUR_USD_2016/october/EUR_USD_Week3.csv",
-        "raw/EUR_USD_2016/october/EUR_USD_Week4.csv",
-        "raw/EUR_USD_2016/october/EUR_USD_Week5.csv",
-        "raw/EUR_USD_2016/november/EUR_USD_Week2.csv",
-        "raw/EUR_USD_2016/november/EUR_USD_Week3.csv",
-        "raw/EUR_USD_2016/november/EUR_USD_Week4.csv",
-        "raw/EUR_USD_2016/november/EUR_USD_Week5.csv",
-        "raw/EUR_USD_2016/december/EUR_USD_Week1.csv",
-        "raw/EUR_USD_2016/december/EUR_USD_Week2.csv",
-        "raw/EUR_USD_2016/december/EUR_USD_Week3.csv",
-        "raw/EUR_USD_2016/december/EUR_USD_Week4.csv",
+        # "raw/EUR_USD_2016/october/EUR_USD_Week1.csv",
+        # "raw/EUR_USD_2016/october/EUR_USD_Week2.csv",
+        # "raw/EUR_USD_2016/october/EUR_USD_Week3.csv",
+        # "raw/EUR_USD_2016/october/EUR_USD_Week4.csv",
+        # "raw/EUR_USD_2016/october/EUR_USD_Week5.csv",
+        # "raw/EUR_USD_2016/november/EUR_USD_Week2.csv",
+        # "raw/EUR_USD_2016/november/EUR_USD_Week3.csv",
+        # "raw/EUR_USD_2016/november/EUR_USD_Week4.csv",
+        # "raw/EUR_USD_2016/november/EUR_USD_Week5.csv",
+        # "raw/EUR_USD_2016/december/EUR_USD_Week1.csv",
+        # "raw/EUR_USD_2016/december/EUR_USD_Week2.csv",
+        # "raw/EUR_USD_2016/december/EUR_USD_Week3.csv",
+        # "raw/EUR_USD_2016/december/EUR_USD_Week4.csv",
         "raw/EUR_USD_2017/january/EUR_USD_Week1.csv",
         "raw/EUR_USD_2017/january/EUR_USD_Week2.csv",
         "raw/EUR_USD_2017/january/EUR_USD_Week3.csv",
         "raw/EUR_USD_2017/january/EUR_USD_Week4.csv",
         "raw/EUR_USD_2017/january/EUR_USD_Week5.csv",
-        "raw/EUR_USD_2017/february/EUR_USD_Week1.csv",
-        "raw/EUR_USD_2017/february/EUR_USD_Week2.csv",
-        "raw/EUR_USD_2017/february/EUR_USD_Week3.csv",
-        "raw/EUR_USD_2017/february/EUR_USD_Week4.csv",
-        "raw/EUR_USD_2017/march/EUR_USD_Week1.csv",
-        "raw/EUR_USD_2017/march/EUR_USD_Week2.csv",
-        "raw/EUR_USD_2017/march/EUR_USD_Week3.csv",
-        "raw/EUR_USD_2017/march/EUR_USD_Week4.csv",
+        # "raw/EUR_USD_2017/february/EUR_USD_Week1.csv",
+        # "raw/EUR_USD_2017/february/EUR_USD_Week2.csv",
+        # "raw/EUR_USD_2017/february/EUR_USD_Week3.csv",
+        # "raw/EUR_USD_2017/february/EUR_USD_Week4.csv",
+        # "raw/EUR_USD_2017/march/EUR_USD_Week1.csv",
+        # "raw/EUR_USD_2017/march/EUR_USD_Week2.csv",
+        # "raw/EUR_USD_2017/march/EUR_USD_Week3.csv",
+        # "raw/EUR_USD_2017/march/EUR_USD_Week4.csv",
     ]
     # inputNames = [
         # "data/EUR_BITCOIN_2016/krakenEUR.csv",
     # ]
-    dataname = "EUR_USD_2017_10-3_1m"
+    dataname = "EUR_USD_2017_1_1m"
     outputFolder = join("data", dataname)
     outputPath = join(outputFolder, "{}.h5".format(dataname))
 
