@@ -43,15 +43,17 @@ class KerasLogger(keras.callbacks.Callback):
         pass
 
     def on_batch_end(self, batch, logs=None):
-        batchSize = logs.get('size', 0)
-        self.seen += batchSize
-        self.__call__("Progress: {}/{}".format(self.seen, self.samples))
+        # batchSize = logs.get('size', 0)
+        # self.seen += batchSize
+        # self.__call__("Progress: {}/{}".format(self.seen, self.samples))
+        pass
 
 
     def on_train_begin(self, logs=None):
         self.epochs = self.params["epochs"]
         self.batchSize = self.params["batch_size"]
         self.__call__("Train begin")
+        self.__call__("Batch size: {}".format(self.batchSize))
 
 
     def on_train_end(self, logs=None):
@@ -73,11 +75,23 @@ def calculateDatetimeRange(start, end, dt):
 def getData(path, offset, limit):
     data = {}
     names = getFileList(path)
+    minValue = None
+    maxValue = None
     for name in names:
         shortName = "".join(name.split(".")[:-1])
+        values = readHdf(join(path, name))
+
+        if shortName != "bid-rsi":
+            newMin = values.min()
+            minValue = newMin if minValue is None or newMin < minValue else minValue
+            newMax = values.max()
+            maxValue = newMax if maxValue is None or newMax > maxValue else maxValue
+
         data[shortName] = {}
-        data[shortName]["data"] = readHdf(join(path, name)).tolist()[offset:offset+limit]
-    return data
+        data[shortName]["data"] = values.tolist()[offset:offset+limit]
+    minValue = minValue.astype(numpy.float64)
+    maxValue = maxValue.astype(numpy.float64)
+    return data, minValue, maxValue
 
 def emitStatus():
     socket.emit("set_metropolis_status", status)
@@ -101,9 +115,11 @@ def emitData(options):
 
     data = {}
     data["labels"] = labels
-    data["indicators"] = getData(path["indicator"], offset, limit)
-    data["predictions"] = getData(path["prediction"], offset, limit)
+    data["indicators"], minValue, maxValue = getData(path["indicator"], offset, limit)
+    data["predictions"], _, _ = getData(path["prediction"], offset, limit)
     data["datasize"] = len(datetimes)
+    data["minValue"] = minValue
+    data["maxValue"] = maxValue
 
     emit("set_data", data)
 
@@ -119,7 +135,7 @@ def trainModel(dataset, path, prefix, logger):
     utility.assertOrCreateDirectory(path["model"])
     model = utility.getModel(trainData, modelPath)
 
-    setStatus("Training {}".format(prefix))
+    setStatus("Training {}-data".format(prefix))
     model.fit(trainData, trainLabels, epochs=epochs, batch_size=32, callbacks=[logger])
     utility.saveModel(model, modelPath)
     return model
