@@ -129,91 +129,86 @@ def saveModel(model, outputName):
         json.dump(model.to_json(), outfile)
     print("Finished saving model weights")
 
-def splitTrainAndTest(values, datetimes, ratio=0.7):
-    trainLength = round(len(values) * ratio)
+def splitTrainAndTest(values, datetimes=None):
+    trainLength = round(len(values) * 0.7)
     train = values[:trainLength]
-    trainDt = datetimes[:trainLength]
     test = values[trainLength:]
-    testDt = datetimes[trainLength:]
+
+    trainDt = None
+    testDt = None
+    if datetimes is not None:
+        trainDt = datetimes[:trainLength]
+        testDt = datetimes[trainLength:]
     return train, test, trainDt, testDt
 
-def takeEvery(values, startOffset, interval):
-    return values[interval-startOffset::interval]
+def takeEvery(values, interval):
+    return values[interval-1::interval]
 
 def splice(values, start, end):
     return values[start:end] if end != 0 else values[start:]
 
-def createDataAndLabels(values, datetimes, lookback, prefix=None, path=None, save=False, scales=None):
-    # 1. Fiks correction (også datetime). Ta høyde for at data og labels len er -1
+def correctData(inValues, useOffset, lookback):
+    values = inValues.copy()
+    offset = 1 if useOffset else 0
     correction = (len(values) - 1) % lookback
-    data = splice(values, 0, -1-correction)
-    labels = splice(values, 1, -correction)[:, 3]
-    labelDt = splice(datetimes, 1, -correction)
+    return splice(values, offset, offset - 1 - correction)
 
-    # 2. createData: reshape data
-    data = data.reshape((-1, lookback, data.shape[1]))
+def reshape(inValues, lookback):
+    values = inValues.copy()
+    return values.reshape((-1, lookback, values.shape[1]))
 
-    # 3. createLabels: Hopp over tilsvarende reshape
-    labels = takeEvery(labels, 1, lookback)
-    labelDt = takeEvery(labelDt, 1, lookback)
+def saveIndicators(indicators, dt, path, prefix, names):
+    stringLabelDt = numpy.array(dt, dtype=numpy.dtype("S48"))
+    assertOrCreateDirectory(path["indicator"])
+    saveToHdf(join(path["base"], "datetimes.h5"), stringLabelDt)
+    for index in range(indicators.shape[1]):
+        saveToHdf(join(path["indicator"], "{}-{}.h5".format(prefix, names[index])), indicators[:, index])
 
-    # 1. assert(len(labels) == len(indicators) == len(datetime)) for test
-    assert len(labels) == len(data) == len(labelDt)
-
-    # 2. Lagre test-labels og -indicators (inkl ohlc) sammen med test-datetime
-    if save:
-        assert(path is not None and scales is not None and prefix is not None)
-        comparisonData = splice(values, 1, -correction)
-        comparisonData = takeEvery(comparisonData, 1, lookback)
-        comparisonData = inverse_normalize(comparisonData, scales)
-
-        # h5py doesnt support utf-8, so store as ascii
-        stringLabelDt = numpy.array(labelDt, dtype=numpy.dtype("S48"))
-
-        # 4. assert(len(data) == len(labels)) for test og train
-        assert comparisonData.shape[1] > 9
-        assert len(comparisonData) == len(labels) == len(stringLabelDt)
-
-        assertOrCreateDirectory(path["indicator"])
-        saveToHdf(join(path["base"], "datetimes.h5"), stringLabelDt)
-        saveToHdf(join(path["indicator"], "{}-open.h5".format(prefix)), comparisonData[:, 0])
-        saveToHdf(join(path["indicator"], "{}-high.h5".format(prefix)), comparisonData[:, 1])
-        saveToHdf(join(path["indicator"], "{}-low.h5".format(prefix)), comparisonData[:, 2])
-        saveToHdf(join(path["indicator"], "{}-close.h5".format(prefix)), comparisonData[:, 3])
-        saveToHdf(join(path["indicator"], "{}-ema.h5".format(prefix)), comparisonData[:, 4])
-        saveToHdf(join(path["indicator"], "{}-rsi.h5".format(prefix)), comparisonData[:, 5])
-        saveToHdf(join(path["indicator"], "{}-upperband.h5".format(prefix)), comparisonData[:, 6])
-        saveToHdf(join(path["indicator"], "{}-middleband.h5".format(prefix)), comparisonData[:, 7])
-        saveToHdf(join(path["indicator"], "{}-lowerband.h5".format(prefix)), comparisonData[:, 8])
-
-    # 5. returner data og labels
-    return {
-        "data": data,
-        "labels": labels,
-        "labelDt": labelDt
-    }
-
-
-def createData(raw, path, prefix, lookback=5):
+def createData(raw, path=None, prefix=None, save=False):
+    lookback = 5
     # 1. Dra ut datetime og values
     datetimes = raw.index.values
-    values = raw.values
+    rawValues = raw.values
 
     # 3. Lag indikatordata, fjern NaN
-    values, datetimes = trading.createIndicators(values, datetimes)
+    rawValues, datetimes, names = trading.createIndicators(rawValues, datetimes)
 
     # 2. normaliser values
-    values, scales = normalize(values)
+    values, scales = normalize(rawValues)
 
     # 4. splitTrainAndTest
     train, test, trainDt, testDt = splitTrainAndTest(values, datetimes)
+    trainRaw, testRaw, _, _ = splitTrainAndTest(rawValues)
 
     # 5. For hver av train og test:
     dataset = {
         "scales": scales
     }
-    dataset["train"] = createDataAndLabels(train, trainDt, lookback)
-    dataset["test"] = createDataAndLabels(test, testDt, lookback, prefix, path, True, scales)
+
+    trainData = reshape(correctData(train, False, lookback), lookback)
+    testData = reshape(correctData(test, False, lookback), lookback)
+
+    trainLabels = takeEvery(correctData(train, True, lookback), lookback)
+    testLabels = takeEvery(correctData(test, True, lookback), lookback)
+    testDt = takeEvery(correctData(testDt, True, lookback), lookback)
+    indicators = takeEvery(correctData(testRaw, False, lookback), lookback)
+
+    assert(len(trainData) == len(trainLabels))
+    assert(len(testData) == len(testLabels) == len(testDt))
+
+    if save:
+        saveIndicators(indicators, testDt, path, prefix, names)
+
+    dataset["train"] = {
+        "data": trainData,
+        "labels": trainLabels[:, 3],
+    }
+    dataset["test"] = {
+        "data": testData,
+        "labels": testLabels[:, 3],
+        "labelDt": testDt,
+    }
+    dataset["indicators"] = indicators
 
     # 6. returner train og test, med data og labels
     return dataset

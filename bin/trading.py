@@ -23,6 +23,8 @@ def createIndicators(prices, datetimes):
     
     values = numpy.column_stack((prices, ema, rsi, upperband, middleband, \
                                  lowerband, adx, slowk, slowd))
+    names = ["open", "high", "low", "close", "ema", "rsi", "upperband", \
+             "middleband", "lowerband", "adx", "slowk", "slowd"]
 
     index = -1
     for row in values:
@@ -30,7 +32,7 @@ def createIndicators(prices, datetimes):
         if not numpy.isnan(row).any():
             break
 
-    return values[index:], datetimes[index:]
+    return values[index:], datetimes[index:], names
 
 
 

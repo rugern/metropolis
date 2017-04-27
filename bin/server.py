@@ -15,7 +15,7 @@ app = Flask(__name__)
 socket = SocketIO(app)
 
 status = "Idle"
-name = "model"
+name = "Test"
 datafile = "EUR_USD_2017_1_10m"
 epochs = 1
 baseFolder = "data"
@@ -99,6 +99,7 @@ def emitStatus():
 def setStatus(newStatus):
     global status
     status = newStatus
+    print(newStatus)
     socket.start_background_task(target=emitStatus)
 
 @socket.on("get_data")
@@ -152,7 +153,7 @@ def train():
     # rawAsk = raw["Ask"]
 
     setStatus("Creating training data")
-    bid = utility.createData(rawBid, path, "bid", 5)
+    bid = utility.createData(rawBid, path, "bid", True)
     # ask = utility.createData(rawAsk, path, "ask", 5)
 
     bidModel = trainModel(bid, path, "bid", logger)
@@ -218,25 +219,40 @@ def getModels():
     path = createPaths()
     emit("set_models", getDirectoryList(join(path["base"], "models")))
 
-@socket.on("market_test")
+@socket.on("start_test")
 def marketTest():
+    setStatus("Initializing testing")
     logger = KerasLogger("add_metropolis_info")
 
+    path = createPaths()
     raw = pandas.read_hdf(join(path["base"], "{}.h5".format(datafile)))
-    rawBid = raw["Bid"]
 
-    setStatus("Creating training data")
-    bid = utility.createData(rawBid, path, "bid", 5)
-
-    modelPath = join(path["model"], "bid")
-    trainData = dataset["train"]["data"]
-    bidModel = utility.getModel(trainData, modelPath)
-    close = numpy.array(readHdf(join(path["indicator"], "{}-close.h5".format("bid"))))
+    setStatus("Creating testing data")
+    bid = utility.createData(raw["Bid"])
+    ask = utility.createData(raw["Ask"])
+    
+    model = utility.getModel(bid["train"]["data"], join(path["model"], "bid"))
 
     setStatus("Creating predictions")
-    predictions = createPredictions(bidModel, bid, path, name, "bid")
+    predictions = createPredictions(model, bid, path, name, "bid")
 
-    bank = testProfitability(model, predictions, close)
+    setStatus("Calculating some data")
+    bidClose = bid["indicators"][:, 3]
+    askClose = ask["indicators"][:, 3]
+
+    # averageSpread = numpy.average(askData-bidData)
+    # setStatus("Calculating some more data")
+
+    setStatus("Finished calculating data")
+
+    data = {
+        "startMoney": 10000,
+        "endMoney": 15000,
+        "stayMoney": 11000,
+    }
+
+    setStatus("Idle")
+    emit("set_test_result", data)
 
 if __name__ == "__main__":
     socket.run(app)
