@@ -4,6 +4,8 @@ class Bank(object):
     def __init__(self, funds):
         self.funds = funds
         self.bound = 0
+        self.buys = 0
+        self.sells = 0
 
     def performAction(self, price, nextPrice, action, quota=0.3):
         if action == actions.BUY:
@@ -29,15 +31,23 @@ class Bank(object):
         # nextValue = self.bound * nextPrice
         # return nextValue - currentValue
 
-    def buy(self, price, quota):
+    def buy(self, price, quota=1.0):
+        self.buys += 1
         amount = self.funds * quota
         self.funds -= amount
         self.bound += amount / price
 
-    def sell(self, price, quota):
+    def sell(self, price, quota=1.0):
+        self.sells += 1
         amount = self.bound * quota
         self.bound -= amount
         self.funds += amount * price
 
-    def calculateValue(self, price):
+    def getResult(self, price):
         return self.funds + self.bound * price
+
+    def getBuys(self):
+        return self.buys
+
+    def getSells(self):
+        return self.sells

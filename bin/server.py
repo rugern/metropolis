@@ -8,6 +8,7 @@ from flask_socketio import SocketIO, emit
 import keras
 
 import utility
+from bank import Bank
 from utility import readHdf, getFileList, getDirectoryList
 from predictions import createPredictions
 
@@ -240,15 +241,29 @@ def marketTest():
     bidClose = bid["indicators"][:, 3]
     askClose = ask["indicators"][:, 3]
 
-    # averageSpread = numpy.average(askData-bidData)
-    # setStatus("Calculating some more data")
+    setStatus("Calculating some more data")
+    averageSpread = numpy.average(askClose - bidClose)
+    difference = predictions - bidClose
+    assert(len(difference) == len(askClose) == len(bidClose))
+
+    setStatus("Performing market test")
+    startMoney = 10000
+    bank = Bank(startMoney)
+    for i in range(difference.shape[0]):
+        diff = difference[i]
+        if diff - averageSpread > 0:
+            bank.buy(askClose[i])
+        elif diff < 0:
+            bank.sell(bidClose[i])
 
     setStatus("Finished calculating data")
 
     data = {
-        "startMoney": 10000,
-        "endMoney": 15000,
-        "stayMoney": 11000,
+        "startMoney": startMoney,
+        "endMoney": bank.getResult(bidClose[-1]),
+        "stayMoney": startMoney * bidClose[-1] / askClose[0],
+        "buys": bank.getBuys(),
+        "sells": bank.getSells(),
     }
 
     setStatus("Idle")
