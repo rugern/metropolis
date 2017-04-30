@@ -61,12 +61,15 @@ class KerasLogger(keras.callbacks.Callback):
         self.__call__("Train end")
 
 def createPaths():
-    return {
+    paths = {
         "base": join(baseFolder, datafile),
         "prediction": join(baseFolder, datafile, "predictions"),
         "indicator": join(baseFolder, datafile, "indicators"),
         "model": join(baseFolder, datafile, "models", name),
     }
+    for key in paths:
+        utility.assertOrCreateDirectory(paths[key])
+    return paths
 
 def calculateDatetimeRange(start, end, dt):
     offset = dt.index(min(dt, key=lambda x: abs(x - start)))
@@ -82,16 +85,16 @@ def getData(path, offset, limit):
         shortName = "".join(name.split(".")[:-1])
         values = readHdf(join(path, name))
 
-        if shortName != "bid-rsi":
-            newMin = values.min()
+        newMin = values.min()
+        newMax = values.max()
+        if newMin > 0 and newMax < 2:
             minValue = newMin if minValue is None or newMin < minValue else minValue
-            newMax = values.max()
             maxValue = newMax if maxValue is None or newMax > maxValue else maxValue
 
         data[shortName] = {}
         data[shortName]["data"] = values.tolist()[offset:offset+limit]
-    minValue = minValue.astype(numpy.float64)
-    maxValue = maxValue.astype(numpy.float64)
+    minValue = 0 if minValue is None else minValue.astype(numpy.float64)
+    maxValue = 1 if maxValue is None else maxValue.astype(numpy.float64)
     return data, minValue, maxValue
 
 def emitStatus():
@@ -135,7 +138,7 @@ def trainModel(dataset, path, prefix, logger):
 
     modelPath = join(path["model"], prefix)
     utility.assertOrCreateDirectory(path["model"])
-    model = utility.getModel(trainData, modelPath)
+    model = utility.getModel(trainData, trainLabels, modelPath)
 
     setStatus("Training {}-data".format(prefix))
     model.fit(trainData, trainLabels, epochs=epochs, batch_size=32, callbacks=[logger])
@@ -232,7 +235,8 @@ def marketTest():
     bid = utility.createData(raw["Bid"])
     ask = utility.createData(raw["Ask"])
     
-    model = utility.getModel(bid["train"]["data"], join(path["model"], "bid"))
+    model = utility.getModel(bid["train"]["data"], bid["train"]["labels"],
+                             join(path["model"], "bid"))
 
     setStatus("Creating predictions")
     predictions = createPredictions(model, bid, path, name, "bid")
@@ -251,7 +255,7 @@ def marketTest():
     bank = Bank(startMoney)
     for i in range(difference.shape[0]):
         diff = difference[i]
-        if diff - averageSpread > 0:
+        if diff > 0:
             bank.buy(askClose[i])
         elif diff < 0:
             bank.sell(bidClose[i])

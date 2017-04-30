@@ -8,12 +8,13 @@ def createPredictions(model, dataset, path, name, prefix):
     dt = dataset["test"]["labelDt"]
     scale = dataset["scales"][3]
 
-    predictions = model.predict(data).reshape((-1))
-    predictions = utility.inverse_normalize(predictions, scale)
+    predictions = model.predict(data)
+    predictions = utility.inverse_normalize(predictions, [scale for i in range(predictions.shape[1])])
 
     assert len(predictions) == len(labels) == len(dt)
     utility.assertOrCreateDirectory(path["prediction"])
-    utility.saveToHdf(join(path["prediction"], "{}-{}.h5".format(prefix, name)), predictions)
+    for i in range(predictions.shape[1]):
+        utility.saveToHdf(join(path["prediction"], "{}-{}-{}.h5".format(prefix, i, name)), predictions[:, i])
 
     return predictions
 

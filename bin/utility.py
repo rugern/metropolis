@@ -18,55 +18,35 @@ def normalize(inMatrix):
     scales = []
     matrix = inMatrix.copy()
 
-    # Reshape parameter to matrix
-    isArray = len(matrix.shape) == 1
-    if isArray:
-        matrix = matrix.reshape((-1, 1))
-
     for index in range(matrix.shape[1]):
         columnMin = matrix[:, index].min()
         columnMax = matrix[:, index].max()
         matrix[:, index] = (matrix[:, index] - columnMin) / (columnMax - columnMin)
         scales.append((columnMin, columnMax))
 
-    # Reshape back to match parameter shape (if changed)
-    if isArray:
-        matrix = matrix.reshape((-1))
-        scales = scales[0]
-
     return matrix, scales
 
 def inverse_normalize(inMatrix, scales):
     matrix = inMatrix.copy()
 
-    # Reshape parameter to matrix
-    isArray = len(matrix.shape) == 1
-    if isArray:
-        matrix = matrix.reshape((-1, 1))
-        scales = [scales]
-
     for index in range(matrix.shape[1]):
         scale = scales[index]
         matrix[:, index] = matrix[:, index] * (scale[1] - scale[0]) + scale[0]
 
-    # Reshape back to match parameter shape (if changed)
-    if isArray:
-        matrix = matrix.reshape((-1))
-
     return matrix
 
-def getModel(data, inputName=None):
+def getModel(inData, outData, inputName=None):
     # model = Sequential()
     # model.add(Dense(hiddenSize, input_dim=features, activation="relu"))
     # model.add(Dense(hiddenSize, activation="relu"))
     # model.add(Dense(features, activation="sigmoid"))
     # model.compile(sgd(lr=0.2), "mse")
 
-    inputs = Input(shape=(data.shape[1], data.shape[2]))
-    x = LSTM(data.shape[2])(inputs)
+    inputs = Input(shape=(inData.shape[1], inData.shape[2]))
+    x = LSTM(inData.shape[2])(inputs)
     x = Dense(50, activation="relu")(x)
     x = Dense(50, activation="relu")(x)
-    predictions = Dense(1, activation="sigmoid")(x)
+    predictions = Dense(outData.shape[1], activation="sigmoid")(x)
     model = Model(inputs=inputs, outputs=predictions)
     model.compile(sgd(lr=0.3), "mse")
 
@@ -142,20 +122,21 @@ def splitTrainAndTest(values, datetimes=None):
     return train, test, trainDt, testDt
 
 def takeEvery(values, interval):
+    # Note to self: Offset mellom train og test er allerede tatt høyde for, derfor "-1"
     return values[interval-1::interval]
 
 def splice(values, start, end):
     return values[start:end] if end != 0 else values[start:]
 
-def correctData(inValues, useOffset, lookback):
+def correctData(inValues, offset, lookback, lookforward):
     values = inValues.copy()
-    offset = 1 if useOffset else 0
-    correction = (len(values) - 1) % lookback
-    return splice(values, offset, offset - 1 - correction)
+    correction = (len(values) - lookforward) % lookback
+    return splice(values, offset, offset - lookforward - correction)
 
-def reshape(inValues, lookback):
-    values = inValues.copy()
-    return values.reshape((-1, lookback, values.shape[1]))
+def reshape(values, lookback):
+    output = numpy.concatenate(tuple(values[i:lookback+i] for i in range(values.shape[0] - lookback + 1)))
+    return output.reshape((-1, lookback, output.shape[1]))
+    # return values.reshape((-1, lookback, values.shape[1]))
 
 def saveIndicators(indicators, dt, path, prefix, names):
     stringLabelDt = numpy.array(dt, dtype=numpy.dtype("S48"))
@@ -165,7 +146,8 @@ def saveIndicators(indicators, dt, path, prefix, names):
         saveToHdf(join(path["indicator"], "{}-{}.h5".format(prefix, names[index])), indicators[:, index])
 
 def createData(raw, path=None, prefix=None, save=False):
-    lookback = 5
+    lookback = 10
+    lookforward = 5
     # 1. Dra ut datetime og values
     datetimes = raw.index.values
     rawValues = raw.values
@@ -185,27 +167,34 @@ def createData(raw, path=None, prefix=None, save=False):
         "scales": scales
     }
 
-    trainData = reshape(correctData(train, False, lookback), lookback)
-    testData = reshape(correctData(test, False, lookback), lookback)
+    trainData = reshape(correctData(train, 0, lookback, lookforward), lookback)
+    testData = reshape(correctData(test, 0, lookback, lookforward), lookback)
 
-    trainLabels = takeEvery(correctData(train, True, lookback), lookback)
-    testLabels = takeEvery(correctData(test, True, lookback), lookback)
-    testDt = takeEvery(correctData(testDt, True, lookback), lookback)
-    indicators = takeEvery(correctData(testRaw, False, lookback), lookback)
+    trainLabels = numpy.column_stack([
+        splice(correctData(train, i, lookback, lookforward), lookback - 1, 0)[:, 3]
+        for i in range(1, lookforward+1)
+    ])
+    testLabels = numpy.column_stack([
+        splice(correctData(test, i, lookback, lookforward), lookback - 1, 0)[:, 3]
+        for i in range(1, lookforward+1)
+    ])
 
-    assert(len(trainData) == len(trainLabels))
-    assert(len(testData) == len(testLabels) == len(testDt))
+    testDt = splice(correctData(testDt, 1, lookback, lookforward), lookback - 1, 0)
+    indicators = splice(correctData(testRaw, 0, lookback, lookforward), lookback - 1, 0)
+
+    assert len(trainData) == len(trainLabels)
+    assert len(testData) == len(testLabels) == len(testDt)
 
     if save:
         saveIndicators(indicators, testDt, path, prefix, names)
 
     dataset["train"] = {
         "data": trainData,
-        "labels": trainLabels[:, 3],
+        "labels": trainLabels,
     }
     dataset["test"] = {
         "data": testData,
-        "labels": testLabels[:, 3],
+        "labels": testLabels,
         "labelDt": testDt,
     }
     dataset["indicators"] = indicators
