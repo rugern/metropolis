@@ -3,28 +3,32 @@ from os.path import isfile, join
 import shutil
 import numpy
 import pandas
-from flask import Flask
+from flask import Flask, jsonify, request
+from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 import keras
 
 import utility
-from bank import Bank
 from utility import readHdf, getFileList, getDirectoryList
+from bank import Bank
 from predictions import createPredictions
 
 app = Flask(__name__)
+CORS(app)
 socket = SocketIO(app)
 
-status = "Idle"
-name = "Test"
-datafile = "EUR_USD_2017_1_10m"
-epochs = 1
-baseFolder = "data"
+lookback = 10
+lookforward = 5
+baseFolder = 'data'
 
 class KerasLogger(keras.callbacks.Callback):
     def __init__(self, eventName):
-        super()
+        super().__init__()
         self.eventName = eventName
+        self.samples = None
+        self.seen = None
+        self.epochs = None
+        self.batchSize = None
 
     def __call__(self, message):
         socket.start_background_task(target=self.log, message=message)
@@ -33,12 +37,12 @@ class KerasLogger(keras.callbacks.Callback):
         socket.emit(self.eventName, message)
 
     def on_epoch_begin(self, epoch, logs=None):
-        self.samples = self.params["samples"]
+        self.samples = self.params['samples']
         self.seen = 0
-        self.__call__("Epoch {}/{}".format(epoch + 1, self.epochs))
+        self.__call__('Epoch {}/{}'.format(epoch + 1, self.epochs))
 
     def on_epoch_end(self, epoch, logs=None):
-        self.__call__("Loss: {}".format(logs["loss"]))
+        self.__call__('Loss: {}'.format(logs['loss']))
 
     def on_batch_begin(self, batch, logs=None):
         pass
@@ -46,44 +50,33 @@ class KerasLogger(keras.callbacks.Callback):
     def on_batch_end(self, batch, logs=None):
         # batchSize = logs.get('size', 0)
         # self.seen += batchSize
-        # self.__call__("Progress: {}/{}".format(self.seen, self.samples))
+        # self.__call__('Progress: {}/{}'.format(self.seen, self.samples))
         pass
 
 
     def on_train_begin(self, logs=None):
-        self.epochs = self.params["epochs"]
-        self.batchSize = self.params["batch_size"]
-        self.__call__("Train begin")
-        self.__call__("Batch size: {}".format(self.batchSize))
+        self.epochs = self.params['epochs']
+        self.batchSize = self.params['batch_size']
+        self.__call__('Train begin')
+        self.__call__('Batch size: {}'.format(self.batchSize))
 
 
     def on_train_end(self, logs=None):
-        self.__call__("Train end")
-
-def createPaths():
-    paths = {
-        "base": join(baseFolder, datafile),
-        "prediction": join(baseFolder, datafile, "predictions"),
-        "indicator": join(baseFolder, datafile, "indicators"),
-        "model": join(baseFolder, datafile, "models", name),
-    }
-    for key in paths:
-        utility.assertOrCreateDirectory(paths[key])
-    return paths
+        self.__call__('Train end')
 
 def calculateDatetimeRange(start, end, dt):
     offset = dt.index(min(dt, key=lambda x: abs(x - start)))
     limit = dt.index(min(dt, key=lambda x: abs(x - end))) - offset
     return offset, limit
 
-def getData(path, offset, limit):
+def readData(path, offset, limit):
     data = {}
-    names = getFileList(path)
+    filenames = getFileList(path)
     minValue = None
     maxValue = None
-    for name in names:
-        shortName = "".join(name.split(".")[:-1])
-        values = readHdf(join(path, name))
+    for filename in filenames:
+        shortName = ''.join(filename.split('.')[:-1])
+        values = readHdf(join(path, filename))
 
         newMin = values.min()
         newMax = values.max()
@@ -92,186 +85,190 @@ def getData(path, offset, limit):
             maxValue = newMax if maxValue is None or newMax > maxValue else maxValue
 
         data[shortName] = {}
-        data[shortName]["data"] = values.tolist()[offset:offset+limit]
+        data[shortName]['data'] = values.tolist()[offset:offset+limit]
     minValue = 0 if minValue is None else minValue.astype(numpy.float64)
     maxValue = 1 if maxValue is None else maxValue.astype(numpy.float64)
     return data, minValue, maxValue
 
-def emitStatus():
-    socket.emit("set_metropolis_status", status)
+def backgroundEmitStatus(status):
+    socket.emit('set_metropolis_status', status)
 
-def setStatus(newStatus):
-    global status
-    status = newStatus
-    print(newStatus)
-    socket.start_background_task(target=emitStatus)
+def emitStatus(status):
+    socket.start_background_task(target=backgroundEmitStatus, status=status)
 
-@socket.on("get_data")
-def emitData(options):
-    path = createPaths()
-    datetimes = numpy.array(readHdf(join(path["base"], "datetimes.h5")), dtype="datetime64[m]").tolist()
-    # endTime = options["endTime"] if "endTime" in options else datetimes[-1]
-    # startTime = options["startTime"] if "startTime" in options else datetimes[-min(len(datetimes), 1000)]
-    limit = options["limit"] if "limit" in options else 200
-    offset = options["offset"] if "offset" in options else len(datetimes) - limit
+def incomingEvent(eventName):
+    print('Incoming event: {}'.format(eventName))
+
+@app.route('/datafiles/<datafile>/data')
+def getData(datafile):
+    incomingEvent('data')
+    offset = request.args.get('offset', 0, int)
+    limit = request.args.get('limit', 200, int)
     offset = max(0, offset)
     limit = min(len(datetimes) - offset, limit)
-    labels = numpy.array(datetimes, dtype=numpy.dtype("str")).tolist()[offset:offset+limit]
+    path = utility.createPaths(baseFolder, datafile)
+
+    datetimes = numpy \
+        .array(readHdf(join(path['base'], 'datetimes.h5')), dtype='datetime64[m]') \
+        .tolist()
+    labels = numpy.array(datetimes, dtype=numpy.dtype('str')).tolist()[offset:offset+limit]
 
     data = {}
-    data["labels"] = labels
-    data["indicators"], minValue, maxValue = getData(path["indicator"], offset, limit)
-    data["predictions"], _, _ = getData(path["prediction"], offset, limit)
-    data["datasize"] = len(datetimes)
-    data["minValue"] = minValue
-    data["maxValue"] = maxValue
+    data['labels'] = labels
+    data['indicators'], minValue, maxValue = readData(path['indicator'], offset, limit)
+    data['predictions'], _, _ = readData(path['prediction'], offset, limit)
+    data['datasize'] = len(datetimes)
+    data['minValue'] = minValue
+    data['maxValue'] = maxValue
 
-    emit("set_data", data)
+    return jsonify(data), 200
 
-@socket.on("get_metropolis_status")
-def getStatus():
-    emitStatus()
+def trainModel(dataset, logger, **kwargs):
+    path = kwargs['path']
+    prefix = kwargs['prefix']
+    epochs = kwargs['epochs']
 
-def trainModel(dataset, path, prefix, logger):
-    trainData = dataset["train"]["data"]
-    trainLabels = dataset["train"]["labels"]
+    trainData = dataset['train']['data']
+    trainLabels = dataset['train']['labels']
 
-    modelPath = join(path["model"], prefix)
-    utility.assertOrCreateDirectory(path["model"])
+    modelPath = join(path['model'], prefix)
+    utility.assertOrCreateDirectory(path['model'])
     model = utility.getModel(trainData, trainLabels, modelPath)
 
-    setStatus("Training {}-data".format(prefix))
     model.fit(trainData, trainLabels, epochs=epochs, batch_size=32, callbacks=[logger])
     utility.saveModel(model, modelPath)
     return model
 
 
-@socket.on("start_train")
-def train():
-    logger = KerasLogger("add_metropolis_info")
+@socket.on('start_train')
+def train(options):
+    emitStatus('Busy')
+    incomingEvent('start_train')
+    logger = KerasLogger('add_metropolis_info')
 
-    setStatus("Initializing training")
-    path = createPaths()
-    raw = pandas.read_hdf(join(path["base"], "{}.h5".format(datafile)))
-    rawBid = raw["Bid"]
-    # rawAsk = raw["Ask"]
+    epochs = options['epochs']
+    datafile = options['datafile']
+    modelName = options['model']
+    prefix = 'bid'
 
-    setStatus("Creating training data")
-    bid = utility.createData(rawBid, path, "bid", True)
-    # ask = utility.createData(rawAsk, path, "ask", 5)
+    path = utility.createPaths(baseFolder, datafile, modelName)
+    raw = pandas.read_hdf(join(path['base'], '{}.h5'.format(datafile)))
+    rawBid = raw['Bid']
+    # rawAsk = raw['Ask']
 
-    bidModel = trainModel(bid, path, "bid", logger)
-    # askModel = trainModel(ask, path, "ask", logger)
+    bid = utility.createData(rawBid, lookback, lookforward, path, prefix, True)
+    # ask = utility.createData(rawAsk, path, 'ask', 5)
 
-    setStatus("Creating predictions")
-    createPredictions(bidModel, bid, path, name, "bid")
-    # createPredictions(askModel, ask, path, name, "ask")
+    bidModel = trainModel(bid, logger, path=path, prefix=prefix, epochs=epochs)
+    # askModel = trainModel(ask, path, 'ask', logger)
 
-    setStatus("Idle")
+    createPredictions(bidModel, bid, path, modelName, prefix)
+    # createPredictions(askModel, ask, path, name, 'ask')
 
-@socket.on("set_model_name")
-def setModelName(newName):
-    global name
-    name = newName
+    emitStatus('Finished training')
 
-@socket.on("set_epochs")
-def setEpochs(newValue):
-    global epochs
-    epochs = newValue
+@app.route('/datafiles/<datafile>/models/<modelName>', methods=['DELETE'])
+def deleteModel(datafile, modelName):
+    incomingEvent('models/delete')
 
-@socket.on("delete_model")
-def deleteModel(deleteName):
-    path = createPaths()
-    setStatus("Deleting model")
+    path = utility.createPaths(baseFolder, datafile, modelName)
     files = []
-    files.append(join(path["prediction"], "{}-{}.h5".format("bid", deleteName)))
-    # files.append(join(path["prediction"], "{}-{}.h5".format("ask", deleteName)))
+    allFiles = getFileList(path['prediction'])
+    for fullName in allFiles:
+        if fullName.split('-')[2] == '{}.h5'.format(modelName):
+            files.append(join(path['prediction'], fullName))
+    # files.append(join(path['prediction'], '{}-{}.h5'.format('ask', modelName)))
 
     dirs = []
-    dirs.append(join(path["base"], "models", deleteName))
+    dirs.append(join(path['base'], 'models', modelName))
 
     for filename in files:
         if not isfile(filename):
-            print("Could not find filename: {}".format(filename))
+            print('Could not find filename: {}'.format(filename))
             continue
         os.remove(filename)
 
     for dirname in dirs:
         if not os.path.exists(dirname):
-            print("Could not find directory: {}".format(dirname))
+            print('Could not find directory: {}'.format(dirname))
             continue
         shutil.rmtree(dirname)
+    return '', 200
 
-    setStatus("Idle")
-
-@socket.on("get_datafiles")
+@app.route('/datafiles')
 def getDatafiles():
-    emit("set_datafiles", getDirectoryList(baseFolder))
+    incomingEvent('datafiles')
+    return jsonify(getDirectoryList(baseFolder)), 200
 
-@socket.on("get_datafile")
-def getDatafiles():
-    emit("set_datafile", datafile)
+@app.route('/datafiles/<datafile>/models')
+def getModels(datafile):
+    incomingEvent('models')
+    path = utility.createPaths(baseFolder, datafile)
+    return jsonify(getDirectoryList(join(path['base'], 'models'))), 200
 
-@socket.on("set_datafile")
-def setDatafile(newDatafile):
-    global datafile
-    datafile = newDatafile
-    emit("datafile_changed")
+@socket.on('start_test')
+def marketTest(options):
+    incomingEvent('start_test')
+    emitStatus('Busy')
+    logger = KerasLogger('add_metropolis_info')
 
-@socket.on("get_models")
-def getModels():
-    path = createPaths()
-    emit("set_models", getDirectoryList(join(path["base"], "models")))
+    datafile = options['datafile']
+    modelName = options['model']
+    prefix = 'bid'
 
-@socket.on("start_test")
-def marketTest():
-    setStatus("Initializing testing")
-    logger = KerasLogger("add_metropolis_info")
+    path = utility.createPaths(baseFolder, datafile, modelName)
+    raw = pandas.read_hdf(join(path['base'], '{}.h5'.format(datafile)))
 
-    path = createPaths()
-    raw = pandas.read_hdf(join(path["base"], "{}.h5".format(datafile)))
+    bid = utility.createData(raw['Bid'], lookback, lookforward)
+    ask = utility.createData(raw['Ask'], lookback, lookforward)
 
-    setStatus("Creating testing data")
-    bid = utility.createData(raw["Bid"])
-    ask = utility.createData(raw["Ask"])
-    
-    model = utility.getModel(bid["train"]["data"], bid["train"]["labels"],
-                             join(path["model"], "bid"))
+    model = utility.getModel(bid['train']['data'], bid['train']['labels'],
+                             join(path['model'], prefix))
 
-    setStatus("Creating predictions")
-    predictions = createPredictions(model, bid, path, name, "bid")
+    predictions = createPredictions(model, bid, path, modelName, prefix)
 
-    setStatus("Calculating some data")
-    bidClose = bid["indicators"][:, 3]
-    askClose = ask["indicators"][:, 3]
+    bidClose = bid['indicators'][:, 3]
+    askClose = ask['indicators'][:, 3]
 
-    setStatus("Calculating some more data")
     averageSpread = numpy.average(askClose - bidClose)
-    difference = predictions - bidClose
-    assert(len(difference) == len(askClose) == len(bidClose))
+    print('Average spread: {}'.format(averageSpread))
+    difference = numpy.transpose(numpy.transpose(predictions) - bidClose)
+    assert len(difference) == len(askClose) == len(bidClose)
 
-    setStatus("Performing market test")
     startMoney = 10000
     bank = Bank(startMoney)
-    for i in range(difference.shape[0]):
-        diff = difference[i]
-        if diff > 0:
+    samples = difference.shape[0]
+    dimension = difference.shape[1]
+    printInterval = samples // 10
+    for i in range(samples):
+        buy = False
+        sell = False
+        total = 0
+        for j in range(dimension):
+            total += difference[i, j]
+            if total > averageSpread:
+                buy = True
+                break
+            elif total < -1 * averageSpread:
+                sell = True
+        if buy:
             bank.buy(askClose[i])
-        elif diff < 0:
+        elif sell:
             bank.sell(bidClose[i])
+        if i % printInterval == 0:
+            logger('Market test: {}/{}'.format(i, samples))
 
-    setStatus("Finished calculating data")
 
     data = {
-        "startMoney": startMoney,
-        "endMoney": bank.getResult(bidClose[-1]),
-        "stayMoney": startMoney * bidClose[-1] / askClose[0],
-        "buys": bank.getBuys(),
-        "sells": bank.getSells(),
+        'startMoney': startMoney,
+        'endMoney': bank.getResult(bidClose[-1]),
+        'stayMoney': startMoney * bidClose[-1] / askClose[0],
+        'buys': bank.getBuys(),
+        'sells': bank.getSells(),
     }
 
-    setStatus("Idle")
-    emit("set_test_result", data)
+    emitStatus('Finished testing')
+    emit('set_test_result', data)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     socket.run(app)

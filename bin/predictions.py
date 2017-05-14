@@ -3,18 +3,24 @@ import numpy
 import utility
 
 def createPredictions(model, dataset, path, name, prefix):
-    data = dataset["test"]["data"] 
-    labels = dataset["test"]["labels"] 
-    dt = dataset["test"]["labelDt"]
+    data = dataset["test"]["data"]
+    labels = dataset["test"]["labels"]
+    dt = dataset["dt"]
     scale = dataset["scales"][3]
 
     predictions = model.predict(data)
-    predictions = utility.inverse_normalize(predictions, [scale for i in range(predictions.shape[1])])
+    predictions = utility \
+        .inverse_normalize(predictions, [scale for i in range(predictions.shape[1])])
+    assert len(predictions) == len(labels)
 
-    assert len(predictions) == len(labels) == len(dt)
     utility.assertOrCreateDirectory(path["prediction"])
-    for i in range(predictions.shape[1]):
-        utility.saveToHdf(join(path["prediction"], "{}-{}-{}.h5".format(prefix, i, name)), predictions[:, i])
+    lookforward = predictions.shape[1]
+    for i in range(lookforward):
+        currentPrediction = utility.splice(predictions[:, i], lookforward - 1 - i, -i)
+        assert len(dt) == len(currentPrediction)
+        utility.saveToHdf(join(
+            path["prediction"], "{}-{}-{}.h5".format(prefix, i, name)
+        ), currentPrediction) # Shift values to correct timestep
 
     return predictions
 

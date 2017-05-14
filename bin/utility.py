@@ -4,14 +4,14 @@ from os import listdir
 from os.path import isfile, join
 import numpy
 import h5py
-from keras.layers import Input, Dense, LSTM
+from keras.layers import Input, Dense, LSTM, Dropout
 from keras.models import Model
 from keras.optimizers import sgd
 import trading
 
 def assertOrCreateDirectory(path):
     if not os.path.exists(path):
-        print("Creating directory '{}'".format(path))
+        print('Creating directory "{}"'.format(path))
         os.makedirs(path)
 
 def normalize(inMatrix):
@@ -37,26 +37,29 @@ def inverse_normalize(inMatrix, scales):
 
 def getModel(inData, outData, inputName=None):
     # model = Sequential()
-    # model.add(Dense(hiddenSize, input_dim=features, activation="relu"))
-    # model.add(Dense(hiddenSize, activation="relu"))
-    # model.add(Dense(features, activation="sigmoid"))
-    # model.compile(sgd(lr=0.2), "mse")
+    # model.add(Dense(hiddenSize, input_dim=features, activation='relu'))
+    # model.add(Dense(hiddenSize, activation='relu'))
+    # model.add(Dense(features, activation='sigmoid'))
+    # model.compile(sgd(lr=0.2), 'mse')
 
     inputs = Input(shape=(inData.shape[1], inData.shape[2]))
     x = LSTM(inData.shape[2])(inputs)
-    x = Dense(50, activation="relu")(x)
-    x = Dense(50, activation="relu")(x)
-    predictions = Dense(outData.shape[1], activation="sigmoid")(x)
-    model = Model(inputs=inputs, outputs=predictions)
-    model.compile(sgd(lr=0.3), "mse")
+    x = Dropout(0.5)(x)
+    x = Dense(50, activation='relu')(x)
+    x = Dropout(0.5)(x)
+    x = Dense(50, activation='relu')(x)
+    x = Dropout(0.5)(x)
+    outputs = Dense(outData.shape[1], activation='sigmoid')(x)
+    model = Model(inputs=inputs, outputs=outputs)
+    model.compile(sgd(lr=0.3), 'mse')
 
     if inputName is not None:
-        inputName += ".h5"
-        print("Loading saved model weights...")
+        inputName += '.h5'
+        print('Loading saved model weights...')
         if os.path.isfile(inputName):
             model.load_weights(inputName)
         else:
-            print("Sorry bro, could not find the weights file: {}".format(inputName))
+            print('Sorry bro, could not find the weights file: {}'.format(inputName))
 
     return model
 
@@ -66,7 +69,7 @@ def getFileList(path, filetype=None):
     filenames = [name for name in listdir(path) if isfile(join(path, name))]
     if filetype is not None:
         filenames = list(filter(lambda filename: filetype in filename, filenames))
-        filenames = list(map(lambda filename: "".join(filename.split(".")[:-1]), filenames))
+        filenames = list(map(lambda filename: ''.join(filename.split('.')[:-1]), filenames))
     return filenames
 
 def getDirectoryList(path):
@@ -76,15 +79,15 @@ def getDirectoryList(path):
     return folderNames
 
 def saveToHdf(filename, data):
-    output = h5py.File(filename, "w")
-    output.create_dataset("data", data=data)
+    output = h5py.File(filename, 'w')
+    output.create_dataset('data', data=data)
     output.close()
 
 def readHdf(name, column=None):
     if not isfile(name):
         return []
-    infile = h5py.File(name, "r")
-    data = infile["data"][:]
+    infile = h5py.File(name, 'r')
+    data = infile['data'][:]
     if column is not None and data.shape[1] > column:
         data = data[:, column]
     infile.close()
@@ -92,22 +95,22 @@ def readHdf(name, column=None):
 
 def readJson(path):
     data = None
-    with open(path, "r") as infile:
+    with open(path, 'r') as infile:
         data = json.load(infile)
     return data
 
 def writeJson(path, data):
-    with open(path, "w") as outfile:
+    with open(path, 'w') as outfile:
         json.dump(data, outfile)
 
 def saveModel(model, outputName):
     if outputName is None:
         return
-    print("Saving model weights...")
-    model.save_weights(outputName + ".h5", overwrite=True)
-    with open(outputName + ".json", "w") as outfile:
+    print('Saving model weights...')
+    model.save_weights(outputName + '.h5', overwrite=True)
+    with open(outputName + '.json', 'w') as outfile:
         json.dump(model.to_json(), outfile)
-    print("Finished saving model weights")
+    print('Finished saving model weights')
 
 def splitTrainAndTest(values, datetimes=None):
     trainLength = round(len(values) * 0.7)
@@ -122,16 +125,16 @@ def splitTrainAndTest(values, datetimes=None):
     return train, test, trainDt, testDt
 
 def takeEvery(values, interval):
-    # Note to self: Offset mellom train og test er allerede tatt høyde for, derfor "-1"
+    # Note to self: Offset mellom train og test er allerede tatt høyde for, derfor '-1'
     return values[interval-1::interval]
 
 def splice(values, start, end):
     return values[start:end] if end != 0 else values[start:]
 
-def correctData(inValues, offset, lookback, lookforward):
+def correctData(inValues, offset, lookback):
     values = inValues.copy()
-    correction = (len(values) - lookforward) % lookback
-    return splice(values, offset, offset - lookforward - correction)
+    correction = (len(values) - offset) % lookback
+    return splice(values, offset, offset - correction)
 
 def reshape(values, lookback):
     output = numpy.concatenate(tuple(values[i:lookback+i] for i in range(values.shape[0] - lookback + 1)))
@@ -139,15 +142,13 @@ def reshape(values, lookback):
     # return values.reshape((-1, lookback, values.shape[1]))
 
 def saveIndicators(indicators, dt, path, prefix, names):
-    stringLabelDt = numpy.array(dt, dtype=numpy.dtype("S48"))
-    assertOrCreateDirectory(path["indicator"])
-    saveToHdf(join(path["base"], "datetimes.h5"), stringLabelDt)
+    stringLabelDt = numpy.array(dt, dtype=numpy.dtype('S48'))
+    assertOrCreateDirectory(path['indicator'])
+    saveToHdf(join(path['base'], 'datetimes.h5'), stringLabelDt)
     for index in range(indicators.shape[1]):
-        saveToHdf(join(path["indicator"], "{}-{}.h5".format(prefix, names[index])), indicators[:, index])
+        saveToHdf(join(path['indicator'], '{}-{}.h5'.format(prefix, names[index])), indicators[:, index])
 
-def createData(raw, path=None, prefix=None, save=False):
-    lookback = 10
-    lookforward = 5
+def createData(raw, lookback, lookforward, path=None, prefix=None, save=False):
     # 1. Dra ut datetime og values
     datetimes = raw.index.values
     rawValues = raw.values
@@ -164,40 +165,55 @@ def createData(raw, path=None, prefix=None, save=False):
 
     # 5. For hver av train og test:
     dataset = {
-        "scales": scales
+        'scales': scales
     }
 
-    trainData = reshape(correctData(train, 0, lookback, lookforward), lookback)
-    testData = reshape(correctData(test, 0, lookback, lookforward), lookback)
+    trainData = splice(reshape(train, lookback), 0, -lookforward)
+    testData = splice(reshape(test, lookback), 0, -lookforward)
 
     trainLabels = numpy.column_stack([
-        splice(correctData(train, i, lookback, lookforward), lookback - 1, 0)[:, 3]
-        for i in range(1, lookforward+1)
+        splice(train, lookback + i, i - lookforward + 1)[:, 3]
+        for i in range(0, lookforward)
     ])
     testLabels = numpy.column_stack([
-        splice(correctData(test, i, lookback, lookforward), lookback - 1, 0)[:, 3]
-        for i in range(1, lookforward+1)
+        splice(test, lookback + i, i - lookforward + 1)[:, 3]
+        for i in range(0, lookforward)
     ])
 
-    testDt = splice(correctData(testDt, 1, lookback, lookforward), lookback - 1, 0)
-    indicators = splice(correctData(testRaw, 0, lookback, lookforward), lookback - 1, 0)
+    dt = splice(testDt, lookback + lookforward - 1, -lookforward + 1)
+    indicators = splice(testRaw, lookback + lookforward - 1, -lookforward + 1)
 
     assert len(trainData) == len(trainLabels)
-    assert len(testData) == len(testLabels) == len(testDt)
+    assert len(testData) == len(testLabels)
+    assert len(dt) == len(indicators)
 
     if save:
-        saveIndicators(indicators, testDt, path, prefix, names)
+        saveIndicators(indicators, dt, path, prefix, names)
 
-    dataset["train"] = {
-        "data": trainData,
-        "labels": trainLabels,
+    dataset['train'] = {
+        'data': trainData,
+        'labels': trainLabels,
     }
-    dataset["test"] = {
-        "data": testData,
-        "labels": testLabels,
-        "labelDt": testDt,
+    dataset['test'] = {
+        'data': testData,
+        'labels': testLabels,
     }
-    dataset["indicators"] = indicators
+    dataset['indicators'] = indicators
+    dataset['dt'] = dt
 
     # 6. returner train og test, med data og labels
     return dataset
+
+def createPaths(base, dataName, modelName=None):
+    paths = {
+        'base': join(base, dataName),
+        'prediction': join(base, dataName, 'predictions'),
+        'indicator': join(base, dataName, 'indicators'),
+        'model': '',
+    }
+    if modelName is not None:
+        paths['model'] = join(base, dataName, 'models', modelName)
+    # if dataName != '' and modelName != '':
+        # for key in paths:
+            # assertOrCreateDirectory(paths[key])
+    return paths
