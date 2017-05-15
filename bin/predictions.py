@@ -1,5 +1,5 @@
 from os.path import join
-import numpy
+
 import utility
 
 def createPredictions(model, dataset, path, name, prefix):

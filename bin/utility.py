@@ -35,31 +35,32 @@ def inverse_normalize(inMatrix, scales):
 
     return matrix
 
-def getModel(inData, outData, inputName=None):
+def loadWeights(model, name):
+    name += '.h5'
+    print('Loading saved model weights...')
+    if os.path.isfile(name):
+        model.load_weights(name)
+    else:
+        print('Sorry bro, could not find the weights file: {}'.format(name))
+
+def createModel():
     # model = Sequential()
     # model.add(Dense(hiddenSize, input_dim=features, activation='relu'))
     # model.add(Dense(hiddenSize, activation='relu'))
     # model.add(Dense(features, activation='sigmoid'))
     # model.compile(sgd(lr=0.2), 'mse')
 
-    inputs = Input(shape=(inData.shape[1], inData.shape[2]))
-    x = LSTM(inData.shape[2])(inputs)
+    # inputs = Input(shape=(inData.shape[1], inData.shape[2]))
+    inputs = Input(shape=(10, 12))
+    x = LSTM(12)(inputs)
     x = Dropout(0.5)(x)
     x = Dense(50, activation='relu')(x)
     x = Dropout(0.5)(x)
     x = Dense(50, activation='relu')(x)
     x = Dropout(0.5)(x)
-    outputs = Dense(outData.shape[1], activation='sigmoid')(x)
+    outputs = Dense(5, activation='sigmoid')(x)
     model = Model(inputs=inputs, outputs=outputs)
-    model.compile(sgd(lr=0.3), 'mse')
-
-    if inputName is not None:
-        inputName += '.h5'
-        print('Loading saved model weights...')
-        if os.path.isfile(inputName):
-            model.load_weights(inputName)
-        else:
-            print('Sorry bro, could not find the weights file: {}'.format(inputName))
+    model.compile(optimizer=sgd(lr=0.3), loss='mse', metrics=['accuracy'])
 
     return model
 
@@ -137,7 +138,9 @@ def correctData(inValues, offset, lookback):
     return splice(values, offset, offset - correction)
 
 def reshape(values, lookback):
-    output = numpy.concatenate(tuple(values[i:lookback+i] for i in range(values.shape[0] - lookback + 1)))
+    output = numpy.concatenate(
+        tuple(values[i:lookback+i] for i in range(values.shape[0] - lookback + 1))
+    )
     return output.reshape((-1, lookback, output.shape[1]))
     # return values.reshape((-1, lookback, values.shape[1]))
 
@@ -146,7 +149,10 @@ def saveIndicators(indicators, dt, path, prefix, names):
     assertOrCreateDirectory(path['indicator'])
     saveToHdf(join(path['base'], 'datetimes.h5'), stringLabelDt)
     for index in range(indicators.shape[1]):
-        saveToHdf(join(path['indicator'], '{}-{}.h5'.format(prefix, names[index])), indicators[:, index])
+        saveToHdf(join(
+            path['indicator'],
+            '{}-{}.h5'.format(prefix, names[index])
+        ), indicators[:, index])
 
 def createData(raw, lookback, lookforward, path=None, prefix=None, save=False):
     # 1. Dra ut datetime og values
@@ -160,8 +166,8 @@ def createData(raw, lookback, lookforward, path=None, prefix=None, save=False):
     values, scales = normalize(rawValues)
 
     # 4. splitTrainAndTest
-    train, test, trainDt, testDt = splitTrainAndTest(values, datetimes)
-    trainRaw, testRaw, _, _ = splitTrainAndTest(rawValues)
+    train, test, _, testDt = splitTrainAndTest(values, datetimes)
+    _, testRaw, _, _ = splitTrainAndTest(rawValues)
 
     # 5. For hver av train og test:
     dataset = {

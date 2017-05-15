@@ -102,15 +102,15 @@ def incomingEvent(eventName):
 @app.route('/datafiles/<datafile>/data')
 def getData(datafile):
     incomingEvent('data')
+    path = utility.createPaths(baseFolder, datafile)
+    datetimes = numpy \
+        .array(readHdf(join(path['base'], 'datetimes.h5')), dtype='datetime64[m]') \
+        .tolist()
     offset = request.args.get('offset', 0, int)
     limit = request.args.get('limit', 200, int)
     offset = max(0, offset)
     limit = min(len(datetimes) - offset, limit)
-    path = utility.createPaths(baseFolder, datafile)
 
-    datetimes = numpy \
-        .array(readHdf(join(path['base'], 'datetimes.h5')), dtype='datetime64[m]') \
-        .tolist()
     labels = numpy.array(datetimes, dtype=numpy.dtype('str')).tolist()[offset:offset+limit]
 
     data = {}
@@ -133,7 +133,8 @@ def trainModel(dataset, logger, **kwargs):
 
     modelPath = join(path['model'], prefix)
     utility.assertOrCreateDirectory(path['model'])
-    model = utility.getModel(trainData, trainLabels, modelPath)
+    model = utility.createModel()
+    utility.loadWeights(model, modelPath)
 
     model.fit(trainData, trainLabels, epochs=epochs, batch_size=32, callbacks=[logger])
     utility.saveModel(model, modelPath)
@@ -222,8 +223,8 @@ def marketTest(options):
     bid = utility.createData(raw['Bid'], lookback, lookforward)
     ask = utility.createData(raw['Ask'], lookback, lookforward)
 
-    model = utility.getModel(bid['train']['data'], bid['train']['labels'],
-                             join(path['model'], prefix))
+    model = utility.createModel()
+    utility.loadWeights(model, join(path['model'], prefix))
 
     predictions = createPredictions(model, bid, path, modelName, prefix)
 
