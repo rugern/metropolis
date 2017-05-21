@@ -43,7 +43,19 @@ def loadWeights(model, name):
     else:
         print('Sorry bro, could not find the weights file: {}'.format(name))
 
-def createModel():
+def createModel(
+        optimizer='Nadam',
+        dropout=0.05,
+        neurons=180,
+        activation='softplus',
+        loss='logcosh',
+):
+    options = {
+        'lookforward': 10,
+        'features': 12,
+        'outputs': 5,
+    }
+
     # model = Sequential()
     # model.add(Dense(hiddenSize, input_dim=features, activation='relu'))
     # model.add(Dense(hiddenSize, activation='relu'))
@@ -51,17 +63,16 @@ def createModel():
     # model.compile(sgd(lr=0.2), 'mse')
 
     # inputs = Input(shape=(inData.shape[1], inData.shape[2]))
-    inputs = Input(shape=(10, 12))
-    x = LSTM(12)(inputs)
-    x = Dropout(0.5)(x)
-    x = Dense(50, activation='relu')(x)
-    x = Dropout(0.5)(x)
-    x = Dense(50, activation='relu')(x)
-    x = Dropout(0.5)(x)
-    outputs = Dense(5, activation='sigmoid')(x)
+    inputs = Input(shape=(options['lookforward'], options['features']))
+    x = LSTM(options['features'])(inputs)
+    x = Dropout(dropout)(x)
+    x = Dense(neurons, activation=activation)(x)
+    x = Dropout(dropout)(x)
+    x = Dense(neurons, activation=activation)(x)
+    x = Dropout(dropout)(x)
+    outputs = Dense(options['outputs'], activation='sigmoid')(x)
     model = Model(inputs=inputs, outputs=outputs)
-    model.compile(optimizer=sgd(lr=0.3), loss='mse', metrics=['accuracy'])
-
+    model.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
     return model
 
 def getFileList(path, filetype=None):

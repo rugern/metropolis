@@ -1,13 +1,25 @@
 from os.path import join
 import pandas
 from sklearn.model_selection import GridSearchCV
-from keras.wrappers.scikit_learn import KerasClassifier
+from keras.wrappers.scikit_learn import KerasRegressor
+from keras.models import Sequential
 
 import utility
 
 datafile = 'EUR_USD_2017_1_10m'
 baseFolder = 'data'
 name = 'Test'
+
+class CustomKerasRegressor(KerasRegressor):
+    def score(self, x, y, **kwargs):
+        '''
+        Override maximizing score function with minimizing
+        '''
+        kwargs = self.filter_sk_params(Sequential.evaluate, kwargs)
+        loss = self.model.evaluate(x, y, **kwargs)
+        if isinstance(loss, list):
+            return -loss[0]
+        return -loss
 
 if __name__ == '__main__':
     path = utility.createPaths(baseFolder, datafile, name)
@@ -17,10 +29,44 @@ if __name__ == '__main__':
     trainData = bid['train']['data']
     trainLabels = bid['train']['labels']
 
-    model = KerasClassifier(build_fn=utility.createModel, verbose=1)
-    batch_size = [10, 20]
-    epochs = [1, 2]
-    param_grid = dict(batch_size=batch_size, epochs=epochs)
+    batch_size = [10, 20, 30]
+    optimizer = ['SGD', 'RMSprop', 'Adagrad', 'Adadelta', 'Adam', 'Adamax', 'Nadam']
+    dropout = [0.01, 0.05, 0.1]
+    neurons = [120, 140, 150, 160, 180, 200]
+    loss = [
+        'mean_squared_error',
+        'mean_absolute_error',
+        'mean_absolute_percentage_error',
+        'mean_squared_logarithmic_error',
+        'squared_hinge',
+        'hinge',
+        'logcosh',
+        # 'kullback_leibler_divergence', #negative value
+        'poisson',
+        # 'cosine_proximity', #negative value
+    ]
+    activation = [
+        'softmax',
+        'elu',
+        'softplus',
+        'softsign',
+        'relu',
+        'tanh',
+        # 'sigmoid',
+        # 'hard_sigmoid',
+        'linear',
+    ]
+    param_grid = dict(
+        # batch_size=batch_size,
+        # optimizer=optimizer,
+        # dropout=dropout,
+        # neurons=neurons,
+        # loss=loss,
+        activation=activation,
+    )
+
+    model = CustomKerasRegressor(build_fn=utility.createModel, epochs=5,
+                                 batch_size=10, verbose=1)
     grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1)
     grid_result = grid.fit(trainData, trainLabels)
 
