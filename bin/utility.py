@@ -49,12 +49,16 @@ def createModel(
         neurons=180,
         activation='softplus',
         loss='logcosh',
+        **kwargs
 ):
     options = {
-        'lookforward': 10,
+        'lookforward': 20,
         'features': 12,
         'outputs': 5,
     }
+    for key in kwargs:
+        options[key] = kwargs[key]
+
 
     # model = Sequential()
     # model.add(Dense(hiddenSize, input_dim=features, activation='relu'))
@@ -188,12 +192,13 @@ def createData(raw, lookback, lookforward, path=None, prefix=None, save=False):
     trainData = splice(reshape(train, lookback), 0, -lookforward)
     testData = splice(reshape(test, lookback), 0, -lookforward)
 
+    labelColumn = 4
     trainLabels = numpy.column_stack([
-        splice(train, lookback + i, i - lookforward + 1)[:, 3]
+        splice(train, lookback + i, i - lookforward + 1)[:, labelColumn]
         for i in range(0, lookforward)
     ])
     testLabels = numpy.column_stack([
-        splice(test, lookback + i, i - lookforward + 1)[:, 3]
+        splice(test, lookback + i, i - lookforward + 1)[:, labelColumn]
         for i in range(0, lookforward)
     ])
 
@@ -223,7 +228,7 @@ def createData(raw, lookback, lookforward, path=None, prefix=None, save=False):
 
 def createPaths(base, dataName, modelName=None):
     paths = {
-        'base': join(base, dataName),
+        'base': base,
         'prediction': join(base, dataName, 'predictions'),
         'indicator': join(base, dataName, 'indicators'),
         'model': '',

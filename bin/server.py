@@ -17,7 +17,7 @@ app = Flask(__name__)
 CORS(app)
 socket = SocketIO(app)
 
-lookback = 10
+lookback = 20
 lookforward = 5
 baseFolder = 'data'
 
@@ -199,7 +199,7 @@ def deleteModel(datafile, modelName):
 @app.route('/datafiles')
 def getDatafiles():
     incomingEvent('datafiles')
-    return jsonify(getDirectoryList(baseFolder)), 200
+    return jsonify(getFileList(baseFolder, '.h5')), 200
 
 @app.route('/datafiles/<datafile>/models')
 def getModels(datafile):
