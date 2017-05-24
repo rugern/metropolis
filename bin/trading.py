@@ -26,6 +26,7 @@ def createIndicators(prices, datetimes):
     names = ["open", "high", "low", "close", "ema", "rsi", "upperband", \
              "middleband", "lowerband", "adx", "slowk", "slowd"]
 
+    assert values.shape[1] == len(names)
     index = -1
     for row in values:
         index += 1

@@ -95,6 +95,7 @@ def getDirectoryList(path):
     return folderNames
 
 def saveToHdf(filename, data):
+    print('Saving to {}'.format(filename))
     output = h5py.File(filename, 'w')
     output.create_dataset('data', data=data)
     output.close()
