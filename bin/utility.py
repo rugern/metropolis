@@ -162,7 +162,7 @@ def reshape(values, lookback):
 def saveIndicators(indicators, dt, path, prefix, names):
     stringLabelDt = numpy.array(dt, dtype=numpy.dtype('S48'))
     assertOrCreateDirectory(path['indicator'])
-    saveToHdf(join(path['base'], 'datetimes.h5'), stringLabelDt)
+    saveToHdf(join(path['data'], 'datetimes.h5'), stringLabelDt)
     for index in range(indicators.shape[1]):
         saveToHdf(join(
             path['indicator'],
@@ -229,6 +229,7 @@ def createData(raw, lookback, lookforward, path=None, prefix=None, save=False):
 def createPaths(base, dataName, modelName=None):
     paths = {
         'base': base,
+        'data': join(base, dataName),
         'prediction': join(base, dataName, 'predictions'),
         'indicator': join(base, dataName, 'indicators'),
         'model': '',

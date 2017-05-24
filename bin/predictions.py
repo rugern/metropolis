@@ -6,7 +6,7 @@ def createPredictions(model, dataset, path, name, prefix):
     data = dataset["test"]["data"]
     labels = dataset["test"]["labels"]
     dt = dataset["dt"]
-    scale = dataset["scales"][3]
+    scale = dataset["scales"][dataset['labelColumn']]
 
     predictions = model.predict(data)
     predictions = utility \

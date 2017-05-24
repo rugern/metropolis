@@ -104,7 +104,7 @@ def getData(datafile):
     incomingEvent('data')
     path = utility.createPaths(baseFolder, datafile)
     datetimes = numpy \
-        .array(readHdf(join(path['base'], 'datetimes.h5')), dtype='datetime64[m]') \
+        .array(readHdf(join(path['data'], 'datetimes.h5')), dtype='datetime64[m]') \
         .tolist()
     offset = request.args.get('offset', 0, int)
     limit = request.args.get('limit', 200, int)
@@ -133,7 +133,7 @@ def trainModel(dataset, logger, **kwargs):
 
     modelPath = join(path['model'], prefix)
     utility.assertOrCreateDirectory(path['model'])
-    model = utility.createModel()
+    model = utility.createModel(features=trainData.shape[2])
     utility.loadWeights(model, modelPath)
 
     model.fit(trainData, trainLabels, epochs=epochs, batch_size=32, callbacks=[logger])
