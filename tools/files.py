@@ -53,7 +53,7 @@ if __name__ == '__main__':
     # inputNames = [
         # 'data/EUR_BITCOIN_2016/krakenEUR.csv',
     # ]
-    dataname = 'EUR_USD_2017_10-3_1h'
+    dataname = 'EUR_USD_2017_10-3_30m'
     outputPath = join('data', '{}.h5'.format(dataname))
 
     for inputName in inputNames:
@@ -77,7 +77,7 @@ if __name__ == '__main__':
     filtered = raw
 
     print('Sampling data')
-    sampled = sample(filtered, '60 min', True)
+    sampled = sample(filtered, '30 min', True)
 
     print('Writing to HDF5')
     writeData(outputPath, sampled)

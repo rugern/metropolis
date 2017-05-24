@@ -44,11 +44,11 @@ def loadWeights(model, name):
         print('Sorry bro, could not find the weights file: {}'.format(name))
 
 def createModel(
-        optimizer='Nadam',
-        dropout=0.05,
-        neurons=180,
-        activation='softplus',
-        loss='logcosh',
+        optimizer='Adam',
+        dropout=0.01,
+        neurons=200,
+        activation='linear',
+        loss='mean_squared_logarithmic_error',
         **kwargs
 ):
     options = {
