@@ -53,7 +53,7 @@ def createModel(
 ):
     options = {
         'lookforward': 20,
-        'features': 12,
+        'features': 14,
         'outputs': 5,
     }
     for key in kwargs:
@@ -186,14 +186,10 @@ def createData(raw, lookback, lookforward, path=None, prefix=None, save=False):
     _, testRaw, _, _ = splitTrainAndTest(rawValues)
 
     # 5. For hver av train og test:
-    dataset = {
-        'scales': scales
-    }
-
     trainData = splice(reshape(train, lookback), 0, -lookforward)
     testData = splice(reshape(test, lookback), 0, -lookforward)
 
-    labelColumn = 4
+    labelColumn = 6
     trainLabels = numpy.column_stack([
         splice(train, lookback + i, i - lookforward + 1)[:, labelColumn]
         for i in range(0, lookforward)
@@ -213,6 +209,9 @@ def createData(raw, lookback, lookforward, path=None, prefix=None, save=False):
     if save:
         saveIndicators(indicators, dt, path, prefix, names)
 
+    dataset = {
+        'scales': scales
+    }
     dataset['train'] = {
         'data': trainData,
         'labels': trainLabels,
@@ -223,6 +222,7 @@ def createData(raw, lookback, lookforward, path=None, prefix=None, save=False):
     }
     dataset['indicators'] = indicators
     dataset['dt'] = dt
+    dataset['labelColumn'] = labelColumn
 
     # 6. returner train og test, med data og labels
     return dataset
@@ -237,7 +237,4 @@ def createPaths(base, dataName, modelName=None):
     }
     if modelName is not None:
         paths['model'] = join(base, dataName, 'models', modelName)
-    # if dataName != '' and modelName != '':
-        # for key in paths:
-            # assertOrCreateDirectory(paths[key])
     return paths

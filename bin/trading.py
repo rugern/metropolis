@@ -10,7 +10,9 @@ def createIndicators(prices, datetimes):
     closePrice = prices[:, 3]
 
     # sma = talib.SMA(prices)
-    ema = talib.EMA(closePrice, timeperiod=20)
+    emaShort = talib.EMA(closePrice, timeperiod=5)
+    emaMedium = talib.EMA(closePrice, timeperiod=10)
+    emaLong = talib.EMA(closePrice, timeperiod=20)
     # macd, macdsignal, macdhist = talib.MACD(prices, fastperiod=12, slowperiod=26, \
                                             # signalperiod=9)
     upperband, middleband, lowerband = \
@@ -21,9 +23,10 @@ def createIndicators(prices, datetimes):
         talib.STOCH(highPrice, lowPrice, closePrice, fastk_period=5, \
                     slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0)
     
-    values = numpy.column_stack((prices, ema, rsi, upperband, middleband, \
+    values = numpy.column_stack((prices, emaShort, emaMedium, emaLong, rsi, \
+                                 upperband, middleband, \
                                  lowerband, adx, slowk, slowd))
-    names = ["open", "high", "low", "close", "ema", "rsi", "upperband", \
+    names = ["open", "high", "low", "close", "ema_short", "ema_medium", "ema_long", "rsi", "upperband", \
              "middleband", "lowerband", "adx", "slowk", "slowd"]
 
     assert values.shape[1] == len(names)

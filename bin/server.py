@@ -181,7 +181,7 @@ def deleteModel(datafile, modelName):
     # files.append(join(path['prediction'], '{}-{}.h5'.format('ask', modelName)))
 
     dirs = []
-    dirs.append(join(path['base'], 'models', modelName))
+    dirs.append(join(path['data'], 'models', modelName))
 
     for filename in files:
         if not isfile(filename):
@@ -205,7 +205,7 @@ def getDatafiles():
 def getModels(datafile):
     incomingEvent('models')
     path = utility.createPaths(baseFolder, datafile)
-    return jsonify(getDirectoryList(join(path['base'], 'models'))), 200
+    return jsonify(getDirectoryList(join(path['data'], 'models'))), 200
 
 @socket.on('start_test')
 def marketTest(options):
