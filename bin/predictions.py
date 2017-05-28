@@ -1,6 +1,7 @@
 from os.path import join
 
-import utility
+from utility import assertOrCreateDirectory, splice, saveToHdf
+from data import inverse_normalize
 
 def createPredictions(model, dataset, path, name, prefix):
     print('Create predictions')
@@ -11,35 +12,23 @@ def createPredictions(model, dataset, path, name, prefix):
 
     print('Predict..')
     predictions = model.predict(data)
-    predictions = utility \
-        .inverse_normalize(predictions, [scale for i in range(predictions.shape[1])])
+    predictions = inverse_normalize(
+        predictions,
+        [scale for i in range(predictions.shape[1])]
+    )
     print('Assert len')
     assert len(predictions) == len(labels)
 
     print('Create path')
-    utility.assertOrCreateDirectory(path["prediction"])
+    assertOrCreateDirectory(path["prediction"])
     lookforward = predictions.shape[1]
     for i in range(lookforward):
         print('Create number {}'.format(i))
-        currentPrediction = utility.splice(predictions[:, i], lookforward - 1 - i, -i)
+        currentPrediction = splice(predictions[:, i], lookforward - 1 - i, -i)
         print('Assert length again')
         assert len(dt) == len(currentPrediction)
-        utility.saveToHdf(join(
+        saveToHdf(join(
             path["prediction"], "{}-{}-{}.h5".format(prefix, i, name)
         ), currentPrediction) # Shift values to correct timestep
 
     return predictions
-
-# if __name__ == "__main__":
-    # number = 1
-    # inputName = "model/testmodel{}".format(number)
-
-    # raw = pandas.read_hdf("data/EUR_USD_2017/EUR_USD_2017_01.hdf5")
-    # trainData, trainLabels, data, testLabels, testLabelDt = utility.createData(raw, 5)
-    # model = utility.getModel(trainData, inputName)
-
-    # predictions = createPredictions(model, testData)
-
-    # assert len(predictions) == len(testLabels) == len(testLabelDt)
-    # utility.saveToHdf("predictions/predictions{}.h5".format(number), predictions)
-    # utility.saveToHdf("predictions/labels{}.h5".format(number), testLabels)

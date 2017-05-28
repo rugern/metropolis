@@ -4,7 +4,9 @@ from sklearn.model_selection import GridSearchCV
 from keras.wrappers.scikit_learn import KerasRegressor
 from keras.models import Sequential
 
-import utility
+from utility import createPaths
+from model import createModel
+from data import createData
 
 datafile = 'EUR_USD_2017_10-3_30m'
 baseFolder = 'data'
@@ -22,10 +24,10 @@ class CustomKerasRegressor(KerasRegressor):
         return -loss
 
 if __name__ == '__main__':
-    path = utility.createPaths(baseFolder, datafile, name)
+    path = createPaths(baseFolder, datafile, name)
     raw = pandas.read_hdf(join(path['base'], '{}.h5'.format(datafile)))
     rawBid = raw['Bid']
-    bid = utility.createData(rawBid, 20, 5)
+    bid = createData(rawBid, 20, 5)
     trainData = bid['train']['data']
     trainLabels = bid['train']['labels']
 
@@ -65,7 +67,7 @@ if __name__ == '__main__':
         activation=activation,
     )
 
-    model = CustomKerasRegressor(build_fn=utility.createModel, epochs=2,
+    model = CustomKerasRegressor(build_fn=createModel, epochs=2,
                                  batch_size=10, verbose=0)
     grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1)
     grid_result = grid.fit(trainData, trainLabels)

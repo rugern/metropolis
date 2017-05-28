@@ -3,8 +3,7 @@ import talib
 
 
 def createIndicators(prices, datetimes):
-    # openPrice, highPrice, lowPrice, closePrice = prices[:]
-    openPrice = prices[:, 0]
+    # openPrice = prices[:, 0]
     highPrice = prices[:, 1]
     lowPrice = prices[:, 2]
     closePrice = prices[:, 3]
@@ -22,12 +21,13 @@ def createIndicators(prices, datetimes):
     slowk, slowd = \
         talib.STOCH(highPrice, lowPrice, closePrice, fastk_period=5, \
                     slowk_period=3, slowk_matype=0, slowd_period=3, slowd_matype=0)
-    
+
     values = numpy.column_stack((prices, emaShort, emaMedium, emaLong, rsi, \
                                  upperband, middleband, \
                                  lowerband, adx, slowk, slowd))
-    names = ["open", "high", "low", "close", "ema_short", "ema_medium", "ema_long", "rsi", "upperband", \
-             "middleband", "lowerband", "adx", "slowk", "slowd"]
+    names = ["open", "high", "low", "close", "ema_short", "ema_medium", \
+             "ema_long", "rsi", "upperband", "middleband", "lowerband", "adx", \
+             "slowk", "slowd"]
 
     assert values.shape[1] == len(names)
     index = -1
@@ -37,6 +37,3 @@ def createIndicators(prices, datetimes):
             break
 
     return values[index:], datetimes[index:], names
-
-
-

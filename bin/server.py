@@ -8,8 +8,10 @@ from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 import keras
 
-import utility
-from utility import readHdf, getFileList, getDirectoryList
+from data import createData
+from model import createModel, loadWeights, saveModel
+from utility import readHdf, getFileList, getDirectoryList, createPaths
+from utility import assertOrCreateDirectory
 from bank import Bank
 from predictions import createPredictions
 
@@ -102,7 +104,7 @@ def incomingEvent(eventName):
 @app.route('/datafiles/<datafile>/data')
 def getData(datafile):
     incomingEvent('data')
-    path = utility.createPaths(baseFolder, datafile)
+    path = createPaths(baseFolder, datafile)
     datetimes = numpy \
         .array(readHdf(join(path['data'], 'datetimes.h5')), dtype='datetime64[m]') \
         .tolist()
@@ -132,12 +134,12 @@ def trainModel(dataset, logger, **kwargs):
     trainLabels = dataset['train']['labels']
 
     modelPath = join(path['model'], prefix)
-    utility.assertOrCreateDirectory(path['model'])
-    model = utility.createModel(features=trainData.shape[2])
-    utility.loadWeights(model, modelPath)
+    assertOrCreateDirectory(path['model'])
+    model = createModel(features=trainData.shape[2])
+    loadWeights(model, modelPath)
 
     model.fit(trainData, trainLabels, epochs=epochs, batch_size=32, callbacks=[logger])
-    utility.saveModel(model, modelPath)
+    saveModel(model, modelPath)
     return model
 
 
@@ -152,13 +154,13 @@ def train(options):
     modelName = options['model']
     prefix = 'bid'
 
-    path = utility.createPaths(baseFolder, datafile, modelName)
+    path = createPaths(baseFolder, datafile, modelName)
     raw = pandas.read_hdf(join(path['base'], '{}.h5'.format(datafile)))
     rawBid = raw['Bid']
     # rawAsk = raw['Ask']
 
-    bid = utility.createData(rawBid, lookback, lookforward, path, prefix, True)
-    # ask = utility.createData(rawAsk, path, 'ask', 5)
+    bid = createData(rawBid, lookback, lookforward, path, prefix, True)
+    # ask = createData(rawAsk, path, 'ask', 5)
 
     bidModel = trainModel(bid, logger, path=path, prefix=prefix, epochs=epochs)
     # askModel = trainModel(ask, path, 'ask', logger)
@@ -172,7 +174,7 @@ def train(options):
 def deleteModel(datafile, modelName):
     incomingEvent('models/delete')
 
-    path = utility.createPaths(baseFolder, datafile, modelName)
+    path = createPaths(baseFolder, datafile, modelName)
     files = []
     allFiles = getFileList(path['prediction'])
     for fullName in allFiles:
@@ -204,7 +206,7 @@ def getDatafiles():
 @app.route('/datafiles/<datafile>/models')
 def getModels(datafile):
     incomingEvent('models')
-    path = utility.createPaths(baseFolder, datafile)
+    path = createPaths(baseFolder, datafile)
     return jsonify(getDirectoryList(join(path['data'], 'models'))), 200
 
 @socket.on('start_test')
@@ -217,14 +219,14 @@ def marketTest(options):
     modelName = options['model']
     prefix = 'bid'
 
-    path = utility.createPaths(baseFolder, datafile, modelName)
+    path = createPaths(baseFolder, datafile, modelName)
     raw = pandas.read_hdf(join(path['base'], '{}.h5'.format(datafile)))
 
-    bid = utility.createData(raw['Bid'], lookback, lookforward)
-    ask = utility.createData(raw['Ask'], lookback, lookforward)
+    bid = createData(raw['Bid'], lookback, lookforward)
+    ask = createData(raw['Ask'], lookback, lookforward)
 
-    model = utility.createModel()
-    utility.loadWeights(model, join(path['model'], prefix))
+    model = createModel()
+    loadWeights(model, join(path['model'], prefix))
 
     predictions = createPredictions(model, bid, path, modelName, prefix)
 
