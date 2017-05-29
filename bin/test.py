@@ -9,17 +9,18 @@ from model import createModel, loadWeights
 from predictions import createPredictions
 from bank import Bank
 from actions import BUY, HOLD, SELL
-from order import Order
+from strategies import emaStop, emaEntry, emaExit
 
 lookback = 20
 lookforward = 5
 
-def test(logger, **kwargs):
+def test(entryStrategy, exitStrategy, logger, **kwargs):
     prefix = 'bid'
     baseFolder = kwargs['baseFolder']
     datafile = kwargs['datafile']
     modelName = kwargs['modelName']
     startMoney = kwargs['startMoney']
+    buySize = kwargs['buySize']
 
     path = createPaths(baseFolder, datafile, modelName)
     raw = pandas.read_hdf(join(path['base'], '{}.h5'.format(datafile)))
@@ -35,41 +36,29 @@ def test(logger, **kwargs):
     bidClose = bid['indicators'][:, 3]
     askClose = ask['indicators'][:, 3]
 
-    averageSpread = numpy.average(askClose - bidClose)
-    print('Average spread: {}'.format(averageSpread))
-    difference = numpy.transpose(numpy.transpose(predictions) - bidClose)
-    assert len(difference) == len(askClose) == len(bidClose)
-
     bank = Bank(startMoney)
-    samples = difference.shape[0]
-    dimension = difference.shape[1]
+    samples = bidClose.shape[0]
     printInterval = samples // 10
+    orders = []
     for i in range(samples):
-        buy = False
-        sell = False
-        total = 0
-        for j in range(dimension):
-            total += difference[i, j]
-            if total > averageSpread:
-                buy = True
-                break
-            elif total < -1 * averageSpread:
-                sell = True
-        if buy:
-            bank.buy(askClose[i])
-        elif sell:
-            bank.sell(bidClose[i])
+        for j in range(len(orders) - 1, -1, -1):
+            if exitStrategy(bidClose, predictions, orders[j].entryIndex, i) == SELL:
+                bank.closeOrder(bidClose[i], orders[j])
+                del orders[j]
+        if entryStrategy(askClose, predictions, i) == BUY:
+            orders.append(bank.openOrder(askClose[i], buySize, i))
         if i % printInterval == 0:
             logger('Market test: {}/{}'.format(i, samples))
-
 
     data = {
         'startMoney': startMoney,
         'endMoney': bank.getResult(bidClose[-1]),
         'stayMoney': startMoney * bidClose[-1] / askClose[0],
-        'buys': bank.getBuys(),
-        'sells': bank.getSells(),
+        'buys': bank.buys,
+        'sells': bank.sells,
     }
+    data['profit'] = '{}%'.format(100 * data['endMoney'] / startMoney)
+    data['relativeProfit'] = '{}%'.format(100 * data['endMoney'] / data['stayMoney'])
     logger(pformat(data))
 
 if __name__ == '__main__':
@@ -78,6 +67,7 @@ if __name__ == '__main__':
         'modelName': 'Test',
         'baseFolder': 'data',
         'startMoney': 10000,
+        'buySize': 0.02
     }
 
-    test(print, **options)
+    test(emaEntry, emaExit, print, **options)

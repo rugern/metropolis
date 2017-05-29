@@ -1,7 +1,7 @@
 from os.path import join
 import numpy
 
-from utility import assertOrCreateDirectory, saveToHdf
+from utility import assertOrCreateDirectory, saveToHdf, splice
 from trading import createIndicators
 
 def normalize(inMatrix):

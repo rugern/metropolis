@@ -1,30 +1,37 @@
+from actions import BUY, HOLD, SELL
+
 def calculateLoss(prices):
     return prices.max() - prices[-1]
 
+def calculateProfit(prices):
+    return prices[-1] - prices[0]
 
-
-def emaStop(prices, predictions, entryIndex):
+def emaStop(bid, ask, predictions, entryIndex, currentIndex):
     stopLoss = 0.001
     takeProfit = 0.005
     period = prices[entryIndex:]
     loss = calculateLoss(period)
     profit = calculateProfit(period)
-    order = action.NOTHING
+    order = HOLD
     if loss > stopLoss or profit > takeProfit:
-        order = action.SELL
+        order = SELL
     elif predictions[4][-1] < prices[-1]:
-        order = action.BUY
+        order = BUY
     return order
 
-def ema(prices, predictions, entryIndex):
+def emaEntry(ask, predictions, currentIndex):
+    order = HOLD
+    if predictions[currentIndex][4] < ask[currentIndex]:
+        order = BUY
+    return order
+
+def emaExit(bid, predictions, entryIndex, currentIndex):
     stopLoss = 0.001
     takeProfit = 0.005
-    period = prices[entryIndex:]
-    loss = calculateLoss(period)
-    profit = calculateProfit(period)
-    order = action.NOTHING
-    if loss > stopLoss or profit > takeProfit or predictions[4][-1] > prices[-1]:
-        order = action.SELL
-    elif predictions[4][-1] < prices[-1]:
-        order = action.BUY
+    loss = calculateLoss(bid[entryIndex:])
+    profit = calculateProfit(bid[entryIndex:])
+    order = HOLD
+    if loss > stopLoss or profit > takeProfit or predictions[currentIndex][4] > prices[currentIndex]:
+        order = SELL
     return order
+    
