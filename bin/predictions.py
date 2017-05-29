@@ -24,11 +24,12 @@ def createPredictions(model, dataset, path, name, prefix):
     lookforward = predictions.shape[1]
     for i in range(lookforward):
         print('Create number {}'.format(i))
-        currentPrediction = splice(predictions[:, i], lookforward - 1 - i, -i)
+        currentPrediction = splice(predictions[:, i], lookforward - 1, 0) # Show info available at each timestep
+        # currentPrediction = splice(predictions[:, i], lookforward - 1 - i, -i) # Shift values to correct timestep
         print('Assert length again')
         assert len(dt) == len(currentPrediction)
         saveToHdf(join(
             path["prediction"], "{}-{}-{}.h5".format(prefix, i, name)
-        ), currentPrediction) # Shift values to correct timestep
+        ), currentPrediction)
 
     return predictions
