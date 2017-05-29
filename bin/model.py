@@ -1,7 +1,9 @@
 import json
 import os
-from keras.layers import Input, Dense, LSTM, Dropout
+from keras.layers import Input, Dense, LSTM, Dropout, Reshape
 from keras.models import Model
+
+from utility import assertOrCreateDirectory
 
 def saveModel(model, outputName):
     if outputName is None:
@@ -21,37 +23,50 @@ def loadWeights(model, name):
         print('Sorry bro, could not find the weights file: {}'.format(name))
 
 def createModel(
-        optimizer='Adam',
-        dropout=0.01,
-        neurons=200,
-        activation='linear',
+        optimizer='Nadam',
+        dropout=0.2,
+        neurons=100,
+        activation='softsign',
         loss='mean_squared_logarithmic_error',
         **kwargs
 ):
     options = {
-        'lookforward': 20,
-        'features': 14,
-        'outputs': 5,
+        'features': 20,
+        'outputs': 20,
+        'batchSize': 32,
     }
     for key in kwargs:
         options[key] = kwargs[key]
 
-
-    # model = Sequential()
-    # model.add(Dense(hiddenSize, input_dim=features, activation='relu'))
-    # model.add(Dense(hiddenSize, activation='relu'))
-    # model.add(Dense(features, activation='sigmoid'))
-    # model.compile(sgd(lr=0.2), 'mse')
+    features = options['features']
 
     # inputs = Input(shape=(inData.shape[1], inData.shape[2]))
-    inputs = Input(shape=(options['lookforward'], options['features']))
-    x = LSTM(options['features'])(inputs)
+    # inputs = Input(shape=(options['timesteps'], features))
+    inputs = Input(batch_shape=(options['batchSize'], 1, features))
+
+    x = LSTM(features, stateful=True, return_sequences=True)(inputs)
     x = Dropout(dropout)(x)
+    x = LSTM(neurons, stateful=True, return_sequences=False)(inputs)
+    x = Dropout(dropout)(x)
+
     x = Dense(neurons, activation=activation)(x)
     x = Dropout(dropout)(x)
-    x = Dense(neurons, activation=activation)(x)
-    x = Dropout(dropout)(x)
+
     outputs = Dense(options['outputs'], activation='sigmoid')(x)
+
     model = Model(inputs=inputs, outputs=outputs)
     model.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
+    return model
+
+def loadModel(path, **kwargs):
+    options = {
+        'prefix': 'bid',
+    }
+    for key in kwargs:
+        options[key] = kwargs[key]
+
+    modelPath = os.path.join(path['model'], options['prefix'])
+    assertOrCreateDirectory(path['model'])
+    model = createModel(**kwargs)
+    loadWeights(model, modelPath)
     return model

@@ -1,5 +1,3 @@
-import actions
-
 class Order(object):
     def __init__(self, size, entryIndex):
         self.size = size
@@ -33,5 +31,3 @@ class Bank(object):
 
     def closeOrder(self, price, order):
         self.sell(price, order.size)
-
-

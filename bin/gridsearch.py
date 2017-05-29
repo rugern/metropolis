@@ -27,14 +27,11 @@ if __name__ == '__main__':
     path = createPaths(baseFolder, datafile, name)
     raw = pandas.read_hdf(join(path['base'], '{}.h5'.format(datafile)))
     rawBid = raw['Bid']
-    bid = createData(rawBid, 20, 5)
-    trainData = bid['train']['data']
-    trainLabels = bid['train']['labels']
+    bid = createData(rawBid, batchSize=32)
 
-    batch_size = [10, 20, 30]
     optimizer = ['SGD', 'RMSprop', 'Adagrad', 'Adadelta', 'Adam', 'Adamax', 'Nadam']
     dropout = [0.01, 0.05, 0.1]
-    neurons = [180, 200, 220, 240, 260]
+    neurons = [50, 100, 150]
     loss = [
         'mean_squared_error',
         'mean_absolute_error',
@@ -59,18 +56,17 @@ if __name__ == '__main__':
         'linear',
     ]
     param_grid = dict(
-        # batch_size=batch_size,
         # optimizer=optimizer,
         # dropout=dropout,
-        # neurons=neurons,
+        neurons=neurons,
         # loss=loss,
-        activation=activation,
+        # activation=activation,
     )
 
-    model = CustomKerasRegressor(build_fn=createModel, epochs=2,
-                                 batch_size=10, verbose=0)
+    model = CustomKerasRegressor(build_fn=createModel, epochs=5,
+                                 batch_size=32, verbose=1)
     grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1)
-    grid_result = grid.fit(trainData, trainLabels)
+    grid_result = grid.fit(bid['trainX'], bid['trainY'])
 
     print('Best: %f using %s' % (grid_result.best_score_, grid_result.best_params_))
     means = grid_result.cv_results_['mean_test_score']

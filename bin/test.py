@@ -1,18 +1,17 @@
 from os.path import join
 from pprint import pformat
-import numpy
 import pandas
+import numpy
 
 from utility import createPaths
 from data import createData
 from model import createModel, loadWeights
 from predictions import createPredictions
 from bank import Bank
-from actions import BUY, HOLD, SELL
-from strategies import emaStop, emaEntry, emaExit
+from actions import BUY, SELL
+from strategies import emaEntry, emaExit
 
-lookback = 20
-lookforward = 5
+batchSize = 32
 
 def test(entryStrategy, exitStrategy, logger, **kwargs):
     prefix = 'bid'
@@ -21,20 +20,25 @@ def test(entryStrategy, exitStrategy, logger, **kwargs):
     modelName = kwargs['modelName']
     startMoney = kwargs['startMoney']
     buySize = kwargs['buySize']
+    batchSize = kwargs['batchSize']
 
     path = createPaths(baseFolder, datafile, modelName)
     raw = pandas.read_hdf(join(path['base'], '{}.h5'.format(datafile)))
 
-    bid = createData(raw['Bid'], lookback, lookforward)
-    ask = createData(raw['Ask'], lookback, lookforward)
+    bid = createData(raw['Bid'])
+    ask = createData(raw['Ask'])
 
     model = createModel()
     loadWeights(model, join(path['model'], prefix))
 
-    predictions = createPredictions(model, bid, path, modelName, prefix)
+    predictions = createPredictions(
+        model, bid['testX'], path,
+        prefix='pred',
+        batchSize=batchSize
+    )
 
-    bidClose = bid['indicators'][:, 3]
-    askClose = ask['indicators'][:, 3]
+    bidClose = numpy.squeeze(bid['testX'][:, 1, 3])
+    askClose = numpy.squeeze(ask['testX'][:, 1, 3])
 
     bank = Bank(startMoney)
     samples = bidClose.shape[0]
@@ -67,7 +71,8 @@ if __name__ == '__main__':
         'modelName': 'Test',
         'baseFolder': 'data',
         'startMoney': 10000,
-        'buySize': 0.02
+        'buySize': 0.02,
+        'batchSize': 32,
     }
 
     test(emaEntry, emaExit, print, **options)

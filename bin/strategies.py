@@ -6,18 +6,18 @@ def calculateLoss(prices):
 def calculateProfit(prices):
     return prices[-1] - prices[0]
 
-def emaStop(bid, ask, predictions, entryIndex, currentIndex):
-    stopLoss = 0.001
-    takeProfit = 0.005
-    period = prices[entryIndex:]
-    loss = calculateLoss(period)
-    profit = calculateProfit(period)
-    order = HOLD
-    if loss > stopLoss or profit > takeProfit:
-        order = SELL
-    elif predictions[4][-1] < prices[-1]:
-        order = BUY
-    return order
+# def emaStop(bid, ask, predictions, entryIndex, currentIndex):
+    # stopLoss = 0.001
+    # takeProfit = 0.005
+    # period = prices[entryIndex:]
+    # loss = calculateLoss(period)
+    # profit = calculateProfit(period)
+    # order = HOLD
+    # if loss > stopLoss or profit > takeProfit:
+        # order = SELL
+    # elif predictions[4][-1] < prices[-1]:
+        # order = BUY
+    # return order
 
 def emaEntry(ask, predictions, currentIndex):
     order = HOLD
@@ -31,7 +31,6 @@ def emaExit(bid, predictions, entryIndex, currentIndex):
     loss = calculateLoss(bid[entryIndex:])
     profit = calculateProfit(bid[entryIndex:])
     order = HOLD
-    if loss > stopLoss or profit > takeProfit or predictions[currentIndex][4] > prices[currentIndex]:
+    if loss > stopLoss or profit > takeProfit or predictions[currentIndex][4] > bid[currentIndex]:
         order = SELL
     return order
-    
