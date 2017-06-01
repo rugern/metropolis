@@ -2,77 +2,109 @@ from os.path import join
 from pprint import pformat
 import pandas
 import numpy
+import itertools
 
 from utility import createPaths
 from data import createData
-from model import createModel, loadWeights
-from predictions import createPredictions
 from bank import Bank
 from actions import BUY, SELL
 from strategies import emaEntry, emaExit
 
-batchSize = 32
+def gridsearch(gridParams, entry, exit, log=print, **kwargs):
+    labels = []
+    paramsMatrix = []
+    for key, elem in gridParams.items():
+        labels.append(key)
+        paramsMatrix.append(elem)
 
-def test(entryStrategy, exitStrategy, logger, **kwargs):
-    prefix = 'bid'
-    baseFolder = kwargs['baseFolder']
-    datafile = kwargs['datafile']
-    modelName = kwargs['modelName']
-    startMoney = kwargs['startMoney']
-    buySize = kwargs['buySize']
-    batchSize = kwargs['batchSize']
+    combinations = itertools.product(*paramsMatrix)
+    best = None
+    results = []
+    for combination in combinations:
+        params = {}
+        for i, elem in enumerate(combination):
+            params[labels[i]] = elem
+            kwargs[labels[i]] = elem
 
-    path = createPaths(baseFolder, datafile, modelName)
-    raw = pandas.read_hdf(join(path['base'], '{}.h5'.format(datafile)))
+        result = test(entry, exit, **kwargs)
 
-    bid = createData(raw['Bid'])
-    ask = createData(raw['Ask'])
+        result['params'] = params
+        if best is None or result['profit'] > best['profit']:
+            best = result.copy()
+        del result['stayMoney']
+        del result['relativeProfit']
+        results.append(result)
 
-    model = createModel()
-    loadWeights(model, join(path['model'], prefix))
+    log('Best result:')
+    log(pformat(best))
+    log('All results:')
+    log(pformat(results))
 
-    predictions = createPredictions(
-        model, bid['testX'], path,
-        prefix='pred',
-        batchSize=batchSize
-    )
+def test(entry, exit, **kwargs):
+    options = {
+        'buySize': 0.02,
+    }
+    for key, value in kwargs.items():
+        options[key] = value
 
-    bidClose = numpy.squeeze(bid['testX'][:, 1, 3])
-    askClose = numpy.squeeze(ask['testX'][:, 1, 3])
-
+    startMoney = options['startMoney']
     bank = Bank(startMoney)
-    samples = bidClose.shape[0]
-    printInterval = samples // 10
+    bidClose = options['bid'][:, 3]
+    askClose = options['ask'][:, 3]
     orders = []
-    for i in range(samples):
+    for i in range(bidClose.shape[0]):
         for j in range(len(orders) - 1, -1, -1):
-            if exitStrategy(bidClose, predictions, orders[j].entryIndex, i) == SELL:
+            if exit(orders[j].entryIndex, i, **options) == SELL:
                 bank.closeOrder(bidClose[i], orders[j])
                 del orders[j]
-        if entryStrategy(askClose, predictions, i) == BUY:
-            orders.append(bank.openOrder(askClose[i], buySize, i))
-        if i % printInterval == 0:
-            logger('Market test: {}/{}'.format(i, samples))
+        if entry(i, **options) == BUY:
+            orders.append(bank.openOrder(askClose[i], options['buySize'], i))
 
-    data = {
-        'startMoney': startMoney,
-        'endMoney': bank.getResult(bidClose[-1]),
-        'stayMoney': startMoney * bidClose[-1] / askClose[0],
+    endMoney = bank.getResult(bidClose[-1])
+    stayMoney = startMoney * bidClose[-1] / askClose[0]
+    result = {
+        'stayMoney': stayMoney,
         'buys': bank.buys,
         'sells': bank.sells,
+        'profit': '{}%'.format((100 * endMoney / startMoney) - 100),
+        'relativeProfit': '{}%'.format((100 * endMoney / stayMoney) - 100),
     }
-    data['profit'] = '{}%'.format(100 * data['endMoney'] / startMoney)
-    data['relativeProfit'] = '{}%'.format(100 * data['endMoney'] / data['stayMoney'])
-    logger(pformat(data))
+    return result
 
 if __name__ == '__main__':
+    datafile = 'EUR_USD_2017_10-3_30m'
+    modelName = 'Test'
+    baseFolder = 'data'
+    prefix = 'bid'
+    path = createPaths(baseFolder, datafile, modelName)
+    raw = pandas.read_hdf(join(path['base'], '{}.h5'.format(datafile)))
+    bid = numpy.squeeze(createData(raw['Bid'])['testX'][:, -1, :])
+    ask = numpy.squeeze(createData(raw['Ask'])['testX'][:, -1, :])
+
+    # model = createModel()
+    # loadWeights(model, join(path['model'], prefix))
+    # predictions = createPredictions(
+        # model, bid, path,
+        # prefix='pred',
+        # batchSize=batchSize
+    # )
+
     options = {
-        'datafile': 'EUR_USD_2017_10-3_30m',
-        'modelName': 'Test',
-        'baseFolder': 'data',
         'startMoney': 10000,
-        'buySize': 0.02,
         'batchSize': 32,
+        'bid': bid,
+        'ask': ask,
+        'log': print,
     }
 
-    test(emaEntry, emaExit, print, **options)
+    stopLoss = [0.00015, 0.0001, 0.00005]
+    takeProfit = [0.01, 0.005, 0.001]
+    buySize = [0.025, 0.02, 0.015]
+
+    gridParams = dict(
+        stopLoss=stopLoss,
+        takeProfit=takeProfit,
+        buySize=buySize,
+    )
+
+    gridsearch(gridParams, emaEntry, emaExit, **options)

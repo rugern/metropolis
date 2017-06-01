@@ -19,18 +19,23 @@ def calculateProfit(prices):
         # order = BUY
     # return order
 
-def emaEntry(ask, predictions, currentIndex):
+def emaEntry(currentIndex, **kwargs):
+    ask = kwargs['ask']
     order = HOLD
-    if predictions[currentIndex][4] < ask[currentIndex]:
-        order = BUY
+    for i in range(4, 10):
+        if ask[currentIndex, i] > ask[currentIndex, 3]:
+            order = BUY
+            break
     return order
 
-def emaExit(bid, predictions, entryIndex, currentIndex):
-    stopLoss = 0.001
-    takeProfit = 0.005
-    loss = calculateLoss(bid[entryIndex:])
-    profit = calculateProfit(bid[entryIndex:])
+def emaExit(entryIndex, currentIndex, 
+            stopLoss=0.0001,
+            takeProfit=0.005,
+            **kwargs):
+    bidClose = kwargs['bid'][:, 3]
+    loss = calculateLoss(bidClose[entryIndex:currentIndex])
+    profit = calculateProfit(bidClose[entryIndex:currentIndex])
     order = HOLD
-    if loss > stopLoss or profit > takeProfit or predictions[currentIndex][4] > bid[currentIndex]:
+    if loss > stopLoss or profit > takeProfit:
         order = SELL
     return order
