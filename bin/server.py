@@ -152,7 +152,7 @@ def deleteModel(datafile, modelName):
 @app.route('/datafiles')
 def getDatafiles():
     incomingEvent('datafiles')
-    return jsonify(getFileList(baseFolder, '.h5')), 200
+    return jsonify(getFileList(baseFolder, filetype='.h5')), 200
 
 @app.route('/datafiles/<datafile>/models')
 def getModels(datafile):

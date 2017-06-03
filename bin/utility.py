@@ -13,13 +13,14 @@ def assertOrCreateDirectory(path):
         os.makedirs(path)
 
 
-def getFileList(path, filetype=None):
+def getFileList(path, pattern=None, filetype=None):
     if not os.path.exists(path):
         return []
     filenames = [name for name in listdir(path) if isfile(join(path, name))]
     if filetype is not None:
         filenames = list(filter(lambda filename: filetype in filename, filenames))
-        filenames = list(map(lambda filename: ''.join(filename.split('.')[:-1]), filenames))
+    if pattern is not None:
+        filenames = list(filter(lambda filename: pattern in filename, filenames))
     return filenames
 
 def getDirectoryList(path):

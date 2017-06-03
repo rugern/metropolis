@@ -1,10 +1,4 @@
-from actions import BUY, HOLD, SELL
-
-def calculateLoss(prices):
-    return prices.max() - prices[-1]
-
-def calculateProfit(prices):
-    return prices[-1] - prices[0]
+from actions import SHORT, HOLD, LONG
 
 # def emaStop(bid, ask, predictions, entryIndex, currentIndex):
     # stopLoss = 0.001
@@ -14,28 +8,27 @@ def calculateProfit(prices):
     # profit = calculateProfit(period)
     # order = HOLD
     # if loss > stopLoss or profit > takeProfit:
-        # order = SELL
+        # order = LONG
     # elif predictions[4][-1] < prices[-1]:
-        # order = BUY
+        # order = SHORT
     # return order
 
-def emaEntry(currentIndex, **kwargs):
-    ask = kwargs['ask']
+def emaShort(prices, currentIndex, **kwargs):
     order = HOLD
     for i in range(4, 10):
-        if ask[currentIndex, i] > ask[currentIndex, 3]:
-            order = BUY
+        if prices[currentIndex, i] < prices[currentIndex, 3]:
+            order = SHORT
             break
     return order
 
-def emaExit(entryIndex, currentIndex, 
-            stopLoss=0.0001,
-            takeProfit=0.005,
+def emaLong(prices, currentIndex, entryIndex, 
+            stopLoss=0.00005,
+            takeProfit=0.00005,
             **kwargs):
-    bidClose = kwargs['bid'][:, 3]
-    loss = calculateLoss(bidClose[entryIndex:currentIndex])
-    profit = calculateProfit(bidClose[entryIndex:currentIndex])
+    period = prices[entryIndex:currentIndex + 1, 3]
+    loss = period[-1] - period.min()
+    profit = period[0] - period[-1]
     order = HOLD
     if loss > stopLoss or profit > takeProfit:
-        order = SELL
+        order = LONG
     return order

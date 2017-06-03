@@ -1,7 +1,8 @@
 from os.path import join
 import numpy
+import pandas
 
-from utility import assertOrCreateDirectory, saveToHdf
+from utility import assertOrCreateDirectory, saveToHdf, getFileList
 from trading import createIndicators
 
 def normalize(inMatrix):
@@ -93,6 +94,18 @@ def saveIndicators(data, path, prefix, names):
 
     # # 6. returner train og test, med data og labels
     # return dataset
+
+def readDataFiles(pattern=None):
+    files = getFileList('data', pattern)
+    data = {}
+    for filename in files:
+        currency = ''.join(filename.split('_')[:2])
+        raw = pandas.read_hdf(join('data', filename))
+        data[currency] = {
+            'bid': raw['Bid'].values,
+            'ask': raw['Ask'].values,
+        }
+    return data
 
 def createDataAndLabels(data, batchSize):
     length = data.shape[0] - round((data.shape[0] - 1) % batchSize)

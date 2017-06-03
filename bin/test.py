@@ -1,16 +1,16 @@
+import sys
 from os.path import join
-from pprint import pformat
-import pandas
-import numpy
 import itertools
+from pprint import pformat
+import click
 
-from utility import createPaths
-from data import createData
+from data import readDataFiles
 from bank import Bank
-from actions import BUY, SELL
-from strategies import emaEntry, emaExit
+from actions import SHORT, LONG
+from strategies import emaShort, emaLong
+from trading import appendIndicators
 
-def gridsearch(gridParams, entry, exit, log=print, **kwargs):
+def gridsearch(gridParams, data, shortStrat, longStrat, log=print, **kwargs):
     labels = []
     paramsMatrix = []
     for key, elem in gridParams.items():
@@ -18,7 +18,7 @@ def gridsearch(gridParams, entry, exit, log=print, **kwargs):
         paramsMatrix.append(elem)
 
     combinations = itertools.product(*paramsMatrix)
-    best = None
+    best = {}
     results = []
     for combination in combinations:
         params = {}
@@ -26,13 +26,11 @@ def gridsearch(gridParams, entry, exit, log=print, **kwargs):
             params[labels[i]] = elem
             kwargs[labels[i]] = elem
 
-        result = test(entry, exit, **kwargs)
+        result = test(data, shortStrat, longStrat, **kwargs)
 
         result['params'] = params
-        if best is None or result['profit'] > best['profit']:
-            best = result.copy()
-        del result['stayMoney']
-        del result['relativeProfit']
+        if 'profit' not in best or result['profit'] > best['profit']:
+            best = result
         results.append(result)
 
     log('Best result:')
@@ -40,71 +38,84 @@ def gridsearch(gridParams, entry, exit, log=print, **kwargs):
     log('All results:')
     log(pformat(results))
 
-def test(entry, exit, **kwargs):
+def getSize(data):
+    size = -1
+    for currency, datasets in data.items():
+        for dataset, prices in datasets.items():
+            currentSize = prices.shape[0]
+            if size == -1:
+                size = currentSize
+            if size != currentSize:
+                print('{}.{} had the wrong size!'.format(currency, dataset))
+                sys.exit(1)
+    return size
+
+def initializeOrders(data):
+    orders = {}
+    for key, value in data.items():
+        orders[key] = []
+    return orders
+
+def test(data, shortStrat, longStrat, **kwargs):
     options = {
-        'buySize': 0.02,
+        'buySize': 0.065,
+        'leverage': 10,
     }
     for key, value in kwargs.items():
         options[key] = value
 
-    startMoney = options['startMoney']
-    bank = Bank(startMoney)
-    bidClose = options['bid'][:, 3]
-    askClose = options['ask'][:, 3]
-    orders = []
-    for i in range(bidClose.shape[0]):
-        for j in range(len(orders) - 1, -1, -1):
-            if exit(orders[j].entryIndex, i, **options) == SELL:
-                bank.closeOrder(bidClose[i], orders[j])
-                del orders[j]
-        if entry(i, **options) == BUY:
-            orders.append(bank.openOrder(askClose[i], options['buySize'], i))
+    buyAmount = options['startMoney'] * options['buySize'] / options['leverage']
+    bank = Bank(options['startMoney'])
+    orders = initializeOrders(data)
+    size = getSize(data)
 
-    endMoney = bank.getResult(bidClose[-1])
-    stayMoney = startMoney * bidClose[-1] / askClose[0]
+    for i in range(size):
+        for currency, prices in data.items():
+            for j in range(len(orders[currency]) - 1, -1, -1):
+                if longStrat(prices['ask'], i, orders[currency][j].entryIndex, **options) == LONG:
+                    bank.closeOrder(prices['ask'][i, 3], orders[currency][j])
+                    del orders[currency][j]
+            if shortStrat(prices['bid'], i, **options) == SHORT:
+                order = bank.openOrder(prices['bid'][i, 3], i, buyAmount, **options)
+                if order is not None:
+                    orders[currency].append(order)
+
+    
     result = {
-        'stayMoney': stayMoney,
         'buys': bank.buys,
         'sells': bank.sells,
-        'profit': '{}%'.format((100 * endMoney / startMoney) - 100),
-        'relativeProfit': '{}%'.format((100 * endMoney / stayMoney) - 100),
     }
+    for currency, orders in orders.items():
+        for order in orders:
+            bank.closeOrder(prices['ask'][-1, 3], order)
+    result['profit'] = '{}%'.format((100 * bank.funds / kwargs['startMoney']) - 100)
     return result
 
-if __name__ == '__main__':
-    datafile = 'EUR_USD_2017_10-3_30m'
-    modelName = 'Test'
-    baseFolder = 'data'
-    prefix = 'bid'
-    path = createPaths(baseFolder, datafile, modelName)
-    raw = pandas.read_hdf(join(path['base'], '{}.h5'.format(datafile)))
-    bid = numpy.squeeze(createData(raw['Bid'])['testX'][:, -1, :])
-    ask = numpy.squeeze(createData(raw['Ask'])['testX'][:, -1, :])
-
-    # model = createModel()
-    # loadWeights(model, join(path['model'], prefix))
-    # predictions = createPredictions(
-        # model, bid, path,
-        # prefix='pred',
-        # batchSize=batchSize
-    # )
-
+@click.command()
+@click.option('--money', default=10000, help='Set amount of EUR to start with')
+def main(money):
     options = {
-        'startMoney': 10000,
+        'startMoney': money,
         'batchSize': 32,
-        'bid': bid,
-        'ask': ask,
         'log': print,
     }
+    # data = readDataFiles(pattern='2017_3-5_15m')
+    data = readDataFiles(pattern='2017_03-05_15min')
+    data = appendIndicators(data)
 
-    stopLoss = [0.00015, 0.0001, 0.00005]
-    takeProfit = [0.01, 0.005, 0.001]
-    buySize = [0.025, 0.02, 0.015]
+    stopLoss = [0.0001, 0.00005, 0.00001]
+    takeProfit = [0.0005, 0.0001, 0.00005]
+    buySize = [0.08, 0.075, 0.07, 0.065, 0.06]
+    leverage = [10, 20, 40, 50]
 
     gridParams = dict(
-        stopLoss=stopLoss,
-        takeProfit=takeProfit,
+        # stopLoss=stopLoss,
+        # takeProfit=takeProfit,
         buySize=buySize,
+        # leverage=leverage,
     )
 
-    gridsearch(gridParams, emaEntry, emaExit, **options)
+    gridsearch(gridParams, data, emaShort, emaLong, **options)
+
+if __name__ == '__main__':
+    main()

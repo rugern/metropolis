@@ -1,7 +1,6 @@
 import numpy
 import talib
 
-
 def createIndicators(prices):
     # openPrice = prices[:, 0]
     highPrice = prices[:, 1]
@@ -64,3 +63,9 @@ def createIndicators(prices):
             break
 
     return values[index:], names
+
+def appendIndicators(data):
+    for currency, datasets in data.items():
+        for dataset, prices in datasets.items():
+            data[currency][dataset], _ = createIndicators(prices)
+    return data
