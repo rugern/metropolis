@@ -2,32 +2,33 @@ import json
 import os
 from os import listdir
 from os.path import isfile, join
+import re
 import h5py
-
-def splice(values, start, end):
-    return values[start:end] if end != 0 else values[start:]
 
 def assertOrCreateDirectory(path):
     if not os.path.exists(path):
         print('Creating directory "{}"'.format(path))
         os.makedirs(path)
 
-
-def getFileList(path, pattern=None, filetype=None):
+def getFileList(path, pattern=None, filetype=None, includePath=False):
     if not os.path.exists(path):
-        return []
-    filenames = [name for name in listdir(path) if isfile(join(path, name))]
+        print('Could not find path: {}'.format(path))
+        sys.exit(1)
+    includedPath = path if includePath else ''
+    filenames = [join(includedPath, name) for name in listdir(path) if isfile(join(path, name))]
     if filetype is not None:
         filenames = list(filter(lambda filename: filetype in filename, filenames))
     if pattern is not None:
-        filenames = list(filter(lambda filename: pattern in filename, filenames))
+        filenames = list(filter(lambda filename: re.search(pattern, filename.split('/')[-1]), filenames))
     return filenames
 
-def getDirectoryList(path):
+def getDirectoryList(path, pattern=None):
     if not os.path.exists(path):
-        return []
-    folderNames = [name for name in listdir(path) if not isfile(join(path, name))]
-    return folderNames
+        raise Error('Could not find path: {}'.format(path))
+    folders = [name for name in listdir(path) if not isfile(join(path, name))]
+    if pattern is not None:
+        folders = list(filter(lambda folder: re.search(pattern, folder), folders))
+    return folders
 
 def saveToHdf(filename, data):
     print('Saving to {}'.format(filename))

@@ -1,9 +1,12 @@
+import sys
+import os
 from os.path import join
 import numpy
 import pandas
 
-from utility import assertOrCreateDirectory, saveToHdf, getFileList
-from trading import createIndicators
+sys.path.insert(1, os.path.join(sys.path[0], '..'))
+from market.trading import createIndicators
+from utility.diskIO import assertOrCreateDirectory, saveToHdf, getFileList
 
 def normalize(inMatrix):
     scales = []
